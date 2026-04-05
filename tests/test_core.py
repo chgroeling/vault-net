@@ -29,9 +29,8 @@ def test_cli_prints_stub_payload(tmp_path: Path) -> None:
     payload = json.loads(result.output)
     assert payload["note_path"] == str(note)
     assert payload["vault_root"] == str(tmp_path)
-    assert payload["nodes"] == []
-    assert payload["edges"] == []
-    assert payload["errors"][0]["code"] == "not_implemented"
+    assert "metadata" in payload
+    assert "files" in payload
 
 
 def test_cli_help_exits_cleanly() -> None:
@@ -187,3 +186,30 @@ def test_cli_pretty_print(tmp_path: Path) -> None:
     assert "  " in result.output
     payload = json.loads(result.output)
     assert payload["note_path"] == str(note)
+
+
+def test_cli_scans_vault_with_frontmatter(tmp_path: Path) -> None:
+    """Integration test: scan vault and return frontmatter data for markdown files."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note_with_fm = vault / "with_fm.md"
+    note_with_fm.write_text("---\ntitle: Test Note\ntags: [test]\n---\n# Hello\n", encoding="utf-8")
+    note_without_fm = vault / "without_fm.md"
+    note_without_fm.write_text("# No Frontmatter\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(main, [str(note_with_fm), "--vault-dir", str(vault)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["vault_root"] == str(vault)
+    assert payload["metadata"]["total_files"] == 2
+    assert payload["metadata"]["files_with_frontmatter"] == 1
+    assert payload["metadata"]["files_without_frontmatter"] == 1
+    assert payload["metadata"]["errors"] == 0
+    files = {f["file_path"].split("/")[-1]: f for f in payload["files"]}
+    assert files["with_fm.md"]["frontmatter"] == {"title": "Test Note", "tags": ["test"]}
+    assert files["with_fm.md"]["status"] == "ok"
+    assert files["without_fm.md"]["frontmatter"] is None
+    assert files["without_fm.md"]["status"] == "illegal"
+    assert files["without_fm.md"]["error"] == "no_frontmatter"
