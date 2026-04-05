@@ -442,7 +442,7 @@ wheels = [
 
 [[package]]
 name = "matterify"
-version = "0.3.0"
+version = "0.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -450,9 +450,9 @@ dependencies = [
     { name = "rich" },
     { name = "structlog" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/62/33/78dec454873f91333ec5abf50e0561f29c26cbb5bb41659e9f082ca8ac54/matterify-0.3.0.tar.gz", hash = "sha256:806a219b9e59ed6d93df5b833851ec2853f87d48fd2a4661327cedd2bb53e133", size = 58032, upload-time = "2026-04-05T06:29:15.942Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b4/88/b20f332031b16b8fa3b620e146910f7689e8824d53b567a8cd918b9f886c/matterify-0.3.1.tar.gz", hash = "sha256:39f08ae2e06ff9d50c6e426d6e3bf2a157043bbe4baa616c96824b5a3e952c4c", size = 60289, upload-time = "2026-04-05T17:31:00.826Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/3c/6b189e536394921db82bf312deb7e40d6f8ea11811c83ed83a8193c4252f/matterify-0.3.0-py3-none-any.whl", hash = "sha256:707da68e21bb505b471c17551f84f3ae437dc1deb456a088a8cc6f58844314c3", size = 11410, upload-time = "2026-04-05T06:29:14.475Z" },
+    { url = "https://files.pythonhosted.org/packages/13/84/76f0d12141fab75b3a8888995ead896920fa54e5f6f40b2325e24a62ef99/matterify-0.3.1-py3-none-any.whl", hash = "sha256:46c6a5d4647bd207d8a46ec2a48b298dc0523778012acf2c9ad70a1561df40b2", size = 13374, upload-time = "2026-04-05T17:30:59.706Z" },
 ]
 
 [[package]]

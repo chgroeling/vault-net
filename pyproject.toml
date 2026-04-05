@@ -27,8 +27,8 @@ classifiers = [
 
 dependencies = [
     "click>=8.3.2",
-    "matterify>=0.3.0",
-    "obsilink>=0.3.0",
+    "matterify>=0.3.1",
+    "obsilink>=0.3.1",
     "python-dotenv>=1.2.2",
     "rich>=14.3.3",
     "structlog>=25.5.0",
