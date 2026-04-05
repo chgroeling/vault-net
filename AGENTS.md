@@ -71,6 +71,62 @@ Prefix commands with `uv run`.
 - **Testing:** `pytest`
 - **Docs:** `mkdocs` + Material theme
 
+## Dependencies
+
+### matterify (>=0.3.0)
+Extracts YAML frontmatter from Markdown files. Used to read metadata from Obsidian notes.
+
+**Public API:**
+- `scan_directory(path: Path) -> AggregatedResult` — Scan directory recursively for `.md`/`.markdown` files and extract frontmatter in parallel
+- `FileEntry` — Per-file result: `file_path`, `frontmatter` (dict), `status`, `error`, `stats`, `file_hash`
+- `ScanMetadata` — Scan summary: `total_files`, `files_with_frontmatter`, `files_without_frontmatter`, `errors`, `scan_duration_seconds`, etc.
+- `AggregatedResult` — Holds `metadata` (ScanMetadata) and `files` (list[FileEntry])
+
+**Default exclusions:** `.git`, `.obsidian`, `__pycache__`, `.venv`, `venv`, `node_modules`, `.mypy_cache`, `.pytest_cache`, `.ruff_cache`
+
+### obsilink (>=0.3.0)
+Extracts Obsidian-style wikilinks, Markdown links, and plain URLs from text. Used to parse link targets from note content.
+
+**Public API:**
+- `extract_links(source) -> list[Link]` — Extract links from `str` or file-like objects (with `.read()`), returns links in encounter order, preserves duplicates
+- `Link` — Frozen dataclass: `type` (LinkType), `target` (str), `alias` (str | None), `heading` (str | None), `blockid` (str | None). Convenience properties: `is_url` (bool), `as_path` (Path)
+- `LinkType` — Enum: `WIKILINK`, `WIKILINK_EMBED`, `MARKDOWN_LINK`, `MARKDOWN_EMBED`, `PLAIN_URL`
+
+### structlog (>=25.5.0)
+Structured logging library. Used for consistent, machine-readable log output across the CLI and API.
+
+**Public API:**
+- `get_logger(*args, **initial_values)` — Get a configured logger; returns a `BoundLogger`
+- `configure(processors=None, wrapper_class=None, context_class=None, logger_factory=None, cache_logger_on_first_use=None)` — Set global defaults for all loggers
+- `BoundLogger` — Immutable context carrier with `bind(**new_values)`, `unbind(*keys)`, `new(**new_values)` methods
+- Logging methods: `debug()`, `info()`, `warning()`, `error()`, `critical()`, `log(level, **kw)`
+- `make_filtering_bound_logger(min_level)` — Create a fast, level-filtering logger (supports async variants: `ainfo()`, `adebug()`, etc.)
+- `PrintLogger` — Simple logger that prints to stdout/stderr (useful for CLI)
+
+### click (>=8.3.2)
+Command-line interface toolkit. Used to build the `link-tracer` CLI.
+
+**Public API:**
+- `@command(name=None, cls=None, **attrs)` — Decorator to create a CLI command
+- `@group(name=None, cls=None, **attrs)` — Decorator to create a command group (subcommands)
+- `@option(*param_decls, cls=None, **attrs)` — Add an option to a command
+- `@argument(*param_decls, cls=None, **attrs)` — Add a positional argument to a command
+- `@pass_context` — Pass the `Context` object to the callback
+- `Context` — Holds runtime state; `obj` attribute for user data, `meta` for extension data
+- `echo(message, file=None, nl=True, err=False, color=None)` — Print output (better than `print()`)
+- `secho(message, **styles)` — Styled echo (combines `echo()` + `style()`)
+- `style(text, fg=None, bg=None, bold=None, dim=None, underline=None, **styles)` — Apply ANSI styling
+- `progressbar(iterable=None, length=None, label=None, **kwargs)` — Display a progress bar
+- `confirm(text, default=False, abort=False)` — Prompt for yes/no confirmation
+- `prompt(text, default=None, hide_input=False, **kwargs)` — Prompt for user input
+- `File` — File path parameter type with lazy open/close
+- `Path` — Path parameter type with existence/type validation
+
+**Supported formats:**
+- Wikilinks: `[[Note]]`, `[[Note|Alias]]`, `[[Page#Heading]]`, `[[Page#Heading^block]]`, `![[Embed]]`
+- Markdown links: `[Text](url)`, `![Image](path)`
+- Plain URLs: `https://`, `http://`, `ftp://`, `file://`, `mailto:`
+
 ## Docstring Rules
 - **Format:** Google Style (`Args:`, `Returns:`, `Raises:`).
 - **Markup:** Markdown ONLY; NO reST/Sphinx directives (`:class:`, etc.).
@@ -81,4 +137,9 @@ Prefix commands with `uv run`.
 - **Staleness:** Always update docstrings, inline comments, and class `Supported modes:` when implementing scaffolds. Treat stale "not yet implemented" text as a bug.
 
 ## Architecture & Mechanisms
-<placeholder>
+
+### Metadata Extraction
+`link-tracer` uses `matterify.scan_directory()` to extract YAML frontmatter from Obsidian markdown notes. The `AggregatedResult` provides per-file `frontmatter` dicts (via `FileEntry.frontmatter`) and scan-level statistics (via `ScanMetadata`). This metadata is combined with link-tracing data to produce enriched JSON/dict output.
+
+### Link Extraction
+`link-tracer` uses `obsilink.extract_links()` to parse Obsidian wikilinks, Markdown links, and plain URLs from note content. Each `Link` provides structured access to the target, alias, heading, and block ID. The `Link.is_url` property distinguishes external URLs from internal note references, while `Link.as_path` converts internal targets to `Path` objects for filesystem resolution.
