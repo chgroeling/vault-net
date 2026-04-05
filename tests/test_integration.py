@@ -6,10 +6,10 @@ from pathlib import Path
 
 from obsilink import extract_links
 
-from tests.test_utils import SAMPLE_NOTES, create_sample_vault
+from tests.test_utils import create_sample_vault
 
 
-def test_extract_internal_links_from_sample_note(tmp_path: Path, capsys) -> None:
+def test_extract_internal_links_from_sample_note(tmp_path: Path) -> None:
     """Extract non-URL links from a sample note and print to console."""
     vault_paths = create_sample_vault(tmp_path)
     note_path = vault_paths["projects.md"]

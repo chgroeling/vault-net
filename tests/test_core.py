@@ -10,6 +10,7 @@ from click.testing import CliRunner
 
 from link_tracer import __version__
 from link_tracer.cli import main
+from tests.test_utils import create_sample_vault
 
 
 def test_package_exposes_version() -> None:
@@ -188,28 +189,148 @@ def test_cli_pretty_print(tmp_path: Path) -> None:
     assert payload["note_path"] == str(note)
 
 
-def test_cli_scans_vault_with_frontmatter(tmp_path: Path) -> None:
-    """Integration test: scan vault and return frontmatter data for markdown files."""
-    vault = tmp_path / "vault"
-    vault.mkdir()
-    note_with_fm = vault / "with_fm.md"
-    note_with_fm.write_text("---\ntitle: Test Note\ntags: [test]\n---\n# Hello\n", encoding="utf-8")
-    note_without_fm = vault / "without_fm.md"
-    note_without_fm.write_text("# No Frontmatter\n", encoding="utf-8")
+def test_trace_filters_files_to_matched_links(tmp_path: Path) -> None:
+    """Filtered output contains only files matched by links in the traced note."""
+    paths = create_sample_vault(tmp_path)
+    vault = tmp_path / "sample_vault"
 
     runner = CliRunner()
-    result = runner.invoke(main, [str(note_with_fm), "--vault-dir", str(vault)])
+    result = runner.invoke(main, [str(paths["home.md"]), "--vault-dir", str(vault)])
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["vault_root"] == str(vault)
-    assert payload["metadata"]["total_files"] == 2
+    assert payload["metadata"]["total_files"] == 1
     assert payload["metadata"]["files_with_frontmatter"] == 1
-    assert payload["metadata"]["files_without_frontmatter"] == 1
+    assert payload["metadata"]["files_without_frontmatter"] == 0
     assert payload["metadata"]["errors"] == 0
-    files = {f["file_path"].split("/")[-1]: f for f in payload["files"]}
-    assert files["with_fm.md"]["frontmatter"] == {"title": "Test Note", "tags": ["test"]}
-    assert files["with_fm.md"]["status"] == "ok"
-    assert files["without_fm.md"]["frontmatter"] is None
-    assert files["without_fm.md"]["status"] == "illegal"
-    assert files["without_fm.md"]["error"] == "no_frontmatter"
+    assert len(payload["files"]) == 1
+    assert payload["files"][0]["file_path"].endswith("about.md")
+    assert payload["files"][0]["frontmatter"] == {"title": "About", "tags": ["info"]}
+    assert payload["files"][0]["status"] == "ok"
+    assert len(payload["matched_links"]) == 1
+    assert payload["matched_links"][0].endswith("about.md")
+
+
+def test_trace_filters_multiple_matched_files(tmp_path: Path) -> None:
+    """Filtered output contains all files matched by links in the traced note."""
+    paths = create_sample_vault(tmp_path)
+    vault = tmp_path / "sample_vault"
+
+    runner = CliRunner()
+    result = runner.invoke(main, [str(paths["about.md"]), "--vault-dir", str(vault)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["metadata"]["total_files"] == 3
+    assert payload["metadata"]["files_with_frontmatter"] == 3
+    assert payload["metadata"]["files_without_frontmatter"] == 0
+    assert payload["metadata"]["errors"] == 0
+    assert len(payload["files"]) == 3
+    file_names = {f["file_path"].split("/")[-1] for f in payload["files"]}
+    assert file_names == {"projects.md", "tasks.md", "diagram.md"}
+    assert len(payload["matched_links"]) == 3
+
+
+def test_trace_links_matches_link_without_extension(tmp_path: Path) -> None:
+    """Links without extensions match files with .md extension."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note = vault / "home.md"
+    note.write_text("---\ntitle: Home\n---\n# Home\n\nSee [[about]].\n", encoding="utf-8")
+    (vault / "about.md").write_text("---\ntitle: About\n---\n# About\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(main, [str(note), "--vault-dir", str(vault)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert "matched_links" in payload
+    assert len(payload["matched_links"]) == 1
+    assert payload["matched_links"][0].endswith("about.md")
+
+
+def test_trace_links_matches_link_with_uppercase_extension(tmp_path: Path) -> None:
+    """Links without extensions match files with .MD extension."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note = vault / "home.md"
+    note.write_text("---\ntitle: Home\n---\n# Home\n\nSee [[about]].\n", encoding="utf-8")
+    (vault / "about.MD").write_text("---\ntitle: About\n---\n# About\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(main, [str(note), "--vault-dir", str(vault)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert len(payload["matched_links"]) == 1
+    assert payload["matched_links"][0].endswith("about.MD")
+
+
+def test_trace_links_matches_link_with_markdown_extension(tmp_path: Path) -> None:
+    """Links without extensions match files with .markdown extension."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note = vault / "home.md"
+    note.write_text("---\ntitle: Home\n---\n# Home\n\nSee [[about]].\n", encoding="utf-8")
+    (vault / "about.markdown").write_text("---\ntitle: About\n---\n# About\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(main, [str(note), "--vault-dir", str(vault)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert len(payload["matched_links"]) == 1
+    assert payload["matched_links"][0].endswith("about.markdown")
+
+
+def test_trace_links_matches_link_with_extension(tmp_path: Path) -> None:
+    """Links with explicit extensions match directly."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note = vault / "home.md"
+    note.write_text("---\ntitle: Home\n---\n# Home\n\nSee [[about.md]].\n", encoding="utf-8")
+    (vault / "about.md").write_text("---\ntitle: About\n---\n# About\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(main, [str(note), "--vault-dir", str(vault)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert len(payload["matched_links"]) == 1
+    assert payload["matched_links"][0].endswith("about.md")
+
+
+def test_trace_links_matches_heading_reference(tmp_path: Path) -> None:
+    """Links with heading references (#) are resolved to files."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note = vault / "home.md"
+    note.write_text("---\ntitle: Home\n---\n# Home\n\nSee [[about#Section]].\n", encoding="utf-8")
+    (vault / "about.md").write_text(
+        "---\ntitle: About\n---\n# About\n\n## Section\n", encoding="utf-8"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(main, [str(note), "--vault-dir", str(vault)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert len(payload["matched_links"]) == 1
+    assert payload["matched_links"][0].endswith("about.md")
+
+
+def test_trace_links_matches_block_reference(tmp_path: Path) -> None:
+    """Links with block references (^) are resolved to files."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note = vault / "home.md"
+    note.write_text("---\ntitle: Home\n---\n# Home\n\nSee [[about^block123]].\n", encoding="utf-8")
+    (vault / "about.md").write_text("---\ntitle: About\n---\n# About\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(main, [str(note), "--vault-dir", str(vault)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert len(payload["matched_links"]) == 1
+    assert payload["matched_links"][0].endswith("about.md")
