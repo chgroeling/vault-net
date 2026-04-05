@@ -17,7 +17,7 @@ def test_extract_internal_links_from_sample_note(tmp_path: Path) -> None:
     content = note_path.read_text(encoding="utf-8")
     links = extract_links(content)
 
-    internal_links = [link for link in links if not link.is_url]
+    internal_links = [link for link in links if link.is_file]
 
     print(f"\nExtracted {len(internal_links)} internal links from {note_path.name}:")
     for link in internal_links:

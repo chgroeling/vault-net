@@ -594,11 +594,11 @@ wheels = [
 
 [[package]]
 name = "obsilink"
-version = "0.3.0"
+version = "0.3.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/34/a0/d6e34687b388333e3d43e9b0c1211f6eece3a283ac31d41dc9b180e667d2/obsilink-0.3.0.tar.gz", hash = "sha256:6680a66ee2b61b990ec10e6910548ca7458b0f90cace804f764ecd175ef029c8", size = 23977, upload-time = "2026-04-05T06:44:23.117Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/9d/8f78dedc1f5fdd2e66fa45d2114fad7d45504909d5e8b7681faa42422560/obsilink-0.3.1.tar.gz", hash = "sha256:8c591fa3fb95d779afea15bc5d2038d1497bc47e3c9536d643e379c2298728b9", size = 25824, upload-time = "2026-04-05T14:55:00.128Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/09/7f/856b8326fc1f90c358bc527cd435fe6bb9098032b1bc524c3b2618ef448a/obsilink-0.3.0-py3-none-any.whl", hash = "sha256:4ebf09f94953e2e706a2ccb2c85ba6cd198c891e416ae12af16bd3fd7b3c1911", size = 6087, upload-time = "2026-04-05T06:44:21.743Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/fa/10bc1cb4054f364e0831d5ff26cc969f0b3f0377a946585928bdf7279ffb/obsilink-0.3.1-py3-none-any.whl", hash = "sha256:d230c3794e35d399034216f5e8b78cff5acc716e7a3b7ce638bfa1131eaff9d4", size = 7819, upload-time = "2026-04-05T14:54:58.935Z" },
 ]
 
 [[package]]

@@ -84,13 +84,22 @@ Extracts YAML frontmatter from Markdown files. Used to read metadata from Obsidi
 
 **Default exclusions:** `.git`, `.obsidian`, `__pycache__`, `.venv`, `venv`, `node_modules`, `.mypy_cache`, `.pytest_cache`, `.ruff_cache`
 
-### obsilink (>=0.3.0)
+### obsilink (>=0.3.1)
 Extracts Obsidian-style wikilinks, Markdown links, and plain URLs from text. Used to parse link targets from note content.
 
 **Public API:**
-- `extract_links(source) -> list[Link]` — Extract links from `str` or file-like objects (with `.read()`), returns links in encounter order, preserves duplicates
-- `Link` — Frozen dataclass: `type` (LinkType), `target` (str), `alias` (str | None), `heading` (str | None), `blockid` (str | None). Convenience properties: `is_url` (bool), `as_path` (Path)
+- `extract_links(source: str | TextReadable) -> list[Link]` — Extract links from `str` or text-readable objects (with `.read()`), returns links in encounter order, preserves duplicates
+- `Link` — Frozen dataclass: `type` (LinkType), `target` (str), `alias` (str | None), `heading` (str | None), `blockid` (str | None). Convenience properties: `is_url` (bool), `is_file` (bool), `as_path` (Path)
 - `LinkType` — Enum: `WIKILINK`, `WIKILINK_EMBED`, `MARKDOWN_LINK`, `MARKDOWN_EMBED`, `PLAIN_URL`
+- `__version__` — Exported package version string
+
+**Behavior notes (from docstrings):**
+- `extract_links()` supports raw `str` input and text-readable objects whose `.read()` returns `str`
+- Links are returned in encounter order, duplicates are preserved, malformed/partial syntax is silently ignored
+- Embed targets (`![[...]]` and `![...](...)`) are included by default
+- Fragment parsing is normalized: `target` excludes `#heading`/`^blockid`, which are exposed as `heading` and `blockid`
+- `extract_links()` raises `TypeError` for unsupported source types or non-`str` `.read()` results
+- `Link.as_path` raises `ValueError` when the target is a URL
 
 ### structlog (>=25.5.0)
 Structured logging library. Used for consistent, machine-readable log output across the CLI and API.
@@ -123,7 +132,7 @@ Command-line interface toolkit. Used to build the `link-tracer` CLI.
 - `Path` — Path parameter type with existence/type validation
 
 **Supported formats:**
-- Wikilinks: `[[Note]]`, `[[Note|Alias]]`, `[[Page#Heading]]`, `[[Page#Heading^block]]`, `![[Embed]]`
+- Wikilinks: `[[Note]]`, `[[Note|Alias]]`, `[[Page#Heading]]`, `[[Note^block]]`, `[[Page#Heading^block]]`, `![[Embed]]`
 - Markdown links: `[Text](url)`, `![Image](path)`
 - Plain URLs: `https://`, `http://`, `ftp://`, `file://`, `mailto:`
 
@@ -142,4 +151,4 @@ Command-line interface toolkit. Used to build the `link-tracer` CLI.
 `link-tracer` uses `matterify.scan_directory()` to extract YAML frontmatter from Obsidian markdown notes. The `AggregatedResult` provides per-file `frontmatter` dicts (via `FileEntry.frontmatter`) and scan-level statistics (via `ScanMetadata`). This metadata is combined with link-tracing data to produce enriched JSON/dict output.
 
 ### Link Extraction
-`link-tracer` uses `obsilink.extract_links()` to parse Obsidian wikilinks, Markdown links, and plain URLs from note content. Each `Link` provides structured access to the target, alias, heading, and block ID. The `Link.is_url` property distinguishes external URLs from internal note references, while `Link.as_path` converts internal targets to `Path` objects for filesystem resolution.
+`link-tracer` uses `obsilink.extract_links()` to parse Obsidian wikilinks, Markdown links, and plain URLs from note content. Each `Link` provides structured access to the target, alias, heading, and block ID. The `Link.is_url` property distinguishes external URLs, while `Link.is_file` identifies file-like internal targets and `Link.as_path` converts those internal targets to `Path` objects for filesystem resolution.

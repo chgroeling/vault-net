@@ -14,37 +14,36 @@ _POSSIBLE_EXTENSIONS = (".md", ".MD", ".markdown")
 
 
 def _resolve_link_to_file(link_target: str, vault_files: list[Path]) -> Path | None:
-    """Resolve a link target to a file path from matterify scan results.
+    """Resolve a file-like link target to a scanned vault file.
 
     Args:
-        link_target: The raw link target from obsilink (may or may not have extension)
+        link_target: Link target from obsilink (target only, no heading/block)
         vault_files: List of file paths from matterify scan
 
     Returns:
         Matching file path or None
     """
-    target = link_target.split("#")[0].split("^")[0].strip()
+    target_str = link_target.strip()
+    target_path = Path(target_str)
 
-    if not target:
+    if not target_str:
         return None
 
     stem_to_file: dict[str, Path] = {}
     for f in vault_files:
         stem_to_file[f.stem.lower()] = f
 
-    target_path = Path(target)
-
     for f in vault_files:
         if f.name.lower() == target_path.name.lower():
             return f
 
     for ext in _POSSIBLE_EXTENSIONS:
-        candidate = target_path.with_suffix(ext) if target_path.suffix else Path(target + ext)
+        candidate = target_path.with_suffix(ext) if target_path.suffix else Path(target_str + ext)
         for f in vault_files:
             if f.name.lower() == candidate.name.lower():
                 return f
 
-    return stem_to_file.get(target.lower())
+    return stem_to_file.get(target_str.lower())
 
 
 def trace_links(
@@ -60,10 +59,10 @@ def trace_links(
 
     content = note_path.read_text(encoding="utf-8")
     links = extract_links(content)
-    internal_links = [link for link in links if not link.is_url]
+    file_links = [link for link in links if link.is_file]
 
     matched_files = []
-    for link in internal_links:
+    for link in file_links:
         matched = _resolve_link_to_file(link.target, vault_files)
         if matched:
             matched_files.append(matched)
