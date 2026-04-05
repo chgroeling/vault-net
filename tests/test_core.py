@@ -176,12 +176,12 @@ def test_cli_errors_on_nonexistent_vault_root(tmp_path: Path) -> None:
 
 
 def test_cli_pretty_print(tmp_path: Path) -> None:
-    """--pretty flag formats JSON with indentation."""
+    """JSON output is always pretty-printed with indentation."""
     note = tmp_path / "note.md"
     note.write_text("# Demo\n", encoding="utf-8")
 
     runner = CliRunner()
-    result = runner.invoke(main, [str(note), "--vault-root", str(tmp_path), "--pretty"])
+    result = runner.invoke(main, [str(note), "--vault-root", str(tmp_path)])
 
     assert result.exit_code == 0
     assert "  " in result.output

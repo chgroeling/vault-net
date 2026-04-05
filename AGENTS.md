@@ -14,10 +14,12 @@ project/
 │   ├── __init__.py
 │   ├── api.py
 │   ├── cli.py
+│   ├── logging.py
 │   └── models.py
 ├── tests/                                  # Pytest suite
 │   ├── conftest.py
-│   └── test_core.py
+│   ├── test_core.py
+│   └── test_integration.py
 └── docs/                                   # MkDocs source
 ```
 
@@ -102,7 +104,12 @@ Extracts Obsidian-style wikilinks, Markdown links, and plain URLs from text. Use
 - `Link.as_path` raises `ValueError` when the target is a URL
 
 ### structlog (>=25.5.0)
-Structured logging library. Used for consistent, machine-readable log output across the CLI and API.
+Structured logging library. Used for consistent, machine-readable log output via `logging.py`.
+
+**Usage rules:**
+- Init: Use `structlog.get_logger(__name__)`. Never `logging.getLogger()`.
+- Context: Use kwargs: `logger.debug("msg", k=v)`. Never `extra={...}` (crashes on reserved keys like `name`).
+- Configure: Use `configure_debug_logging(enabled)` from `logging.py`. Uses `logging.CRITICAL` (50) for no-op. Avoid `logging.CRITICAL + 1` (causes `KeyError`).
 
 **Public API:**
 - `get_logger(*args, **initial_values)` — Get a configured logger; returns a `BoundLogger`
@@ -112,24 +119,24 @@ Structured logging library. Used for consistent, machine-readable log output acr
 - `make_filtering_bound_logger(min_level)` — Create a fast, level-filtering logger (supports async variants: `ainfo()`, `adebug()`, etc.)
 - `PrintLogger` — Simple logger that prints to stdout/stderr (useful for CLI)
 
+### rich
+Console output library. Used for verbose CLI output via `logging.py`.
+
+**Usage:**
+- `get_console(verbose)` — Returns `rich.Console()`. Verbose writes to stdout for `CliRunner` capture; otherwise `quiet=True`.
+
 ### click (>=8.3.2)
 Command-line interface toolkit. Used to build the `link-tracer` CLI.
 
-**Public API:**
-- `@command(name=None, cls=None, **attrs)` — Decorator to create a CLI command
-- `@group(name=None, cls=None, **attrs)` — Decorator to create a command group (subcommands)
-- `@option(*param_decls, cls=None, **attrs)` — Add an option to a command
-- `@argument(*param_decls, cls=None, **attrs)` — Add a positional argument to a command
-- `@pass_context` — Pass the `Context` object to the callback
-- `Context` — Holds runtime state; `obj` attribute for user data, `meta` for extension data
-- `echo(message, file=None, nl=True, err=False, color=None)` — Print output (better than `print()`)
-- `secho(message, **styles)` — Styled echo (combines `echo()` + `style()`)
-- `style(text, fg=None, bg=None, bold=None, dim=None, underline=None, **styles)` — Apply ANSI styling
-- `progressbar(iterable=None, length=None, label=None, **kwargs)` — Display a progress bar
-- `confirm(text, default=False, abort=False)` — Prompt for yes/no confirmation
-- `prompt(text, default=None, hide_input=False, **kwargs)` — Prompt for user input
-- `File` — File path parameter type with lazy open/close
-- `Path` — Path parameter type with existence/type validation
+**CLI options:**
+- `note` (positional): Path to the note file (must exist)
+- `--vault-root`: Vault root directory (overrides `.vault` file and `VAULT_ROOT` env var)
+- `--follow-chain`: Boolean flag, enables recursive link following
+- `--max-depth`: Integer, traversal depth limit
+- `--debug`: Boolean flag, enables structlog debug output (JSON to stderr)
+- `--verbose`: Boolean flag, enables verbose console output via rich
+
+**Output:** JSON is always pretty-printed with 2-space indentation.
 
 **Supported formats:**
 - Wikilinks: `[[Note]]`, `[[Note|Alias]]`, `[[Page#Heading]]`, `[[Note^block]]`, `[[Page#Heading^block]]`, `![[Embed]]`

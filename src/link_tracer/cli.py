@@ -7,10 +7,14 @@ import os
 from pathlib import Path
 
 import click
+import structlog
 from dotenv import dotenv_values, find_dotenv
 
 from link_tracer.api import trace_links
+from link_tracer.logging import configure_debug_logging, get_console
 from link_tracer.models import TraceOptions
+
+logger = structlog.get_logger(__name__)
 
 
 def resolve_vault_root(cli_value: Path | None) -> Path:
@@ -57,15 +61,30 @@ def resolve_vault_root(cli_value: Path | None) -> Path:
 )
 @click.option("--follow-chain", is_flag=True, help="Follow links recursively")
 @click.option("--max-depth", type=int, default=None, help="Traversal depth limit")
-@click.option("--pretty", is_flag=True, help="Pretty-print JSON output")
+@click.option("--debug", is_flag=True, help="Enable debug-level structured logging to stderr")
+@click.option("--verbose", is_flag=True, help="Enable verbose console output")
 def main(
-    note: Path, vault_root: Path | None, follow_chain: bool, max_depth: int | None, pretty: bool
+    note: Path,
+    vault_root: Path | None,
+    follow_chain: bool,
+    max_depth: int | None,
+    debug: bool,
+    verbose: bool,
 ) -> int:
     """Trace Obsidian note links to filesystem sources."""
+    configure_debug_logging(debug)
+    console = get_console(verbose)
+
+    logger.debug(
+        "Starting link tracer", note=str(note), vault_root=str(vault_root) if vault_root else None
+    )
     vault_root = resolve_vault_root(vault_root)
     options = TraceOptions(follow_chain=follow_chain, max_depth=max_depth)
+    logger.info("Tracing links", note=str(note))
     payload = trace_links(note_path=note, vault_root=vault_root, options=options)
-    click.echo(json.dumps(payload, indent=2 if pretty else None))
+    click.echo(json.dumps(payload, indent=2))
+    console.print("Link tracing complete")
+    logger.info("Link tracing complete")
     return 0
 
 
