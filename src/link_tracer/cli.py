@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import asdict
 from pathlib import Path
 
 import click
@@ -81,8 +82,8 @@ def main(
     vault_root = resolve_vault_root(vault_root)
     options = TraceOptions(follow_chain=follow_chain, max_depth=max_depth)
     logger.info("Tracing links", note=str(note))
-    payload = trace_links(note_path=note, vault_root=vault_root, options=options)
-    click.echo(json.dumps(payload, indent=2))
+    response = trace_links(note_path=note, vault_root=vault_root, options=options)
+    click.echo(json.dumps(asdict(response), indent=2))
     console.print("Link tracing complete")
     logger.info("Link tracing complete")
     return 0

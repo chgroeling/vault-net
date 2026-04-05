@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from matterify import scan_directory
 from obsilink import extract_links
 
-from link_tracer.models import TraceOptions
+from link_tracer.models import (
+    FileStats,
+    TracedFile,
+    TraceMetadata,
+    TraceOptions,
+    TraceResponse,
+)
 
 _POSSIBLE_EXTENSIONS = (".md", ".MD", ".markdown")
 
@@ -51,7 +56,7 @@ def trace_links(
     vault_root: Path,
     *,
     options: TraceOptions | None = None,
-) -> dict[str, Any]:
+) -> TraceResponse:
     """Scan vault directory and return structured trace response."""
     resolved_options = options or TraceOptions()
     result = scan_directory(vault_root)
@@ -82,36 +87,35 @@ def trace_links(
     without_fm = total - with_fm
     errors = sum(1 for f in filtered_files if f.status != "ok")
 
-    return {
-        "note_path": str(note_path),
-        "vault_root": str(vault_root),
-        "options": {
-            "follow_chain": resolved_options.follow_chain,
-            "max_depth": resolved_options.max_depth,
-        },
-        "metadata": {
-            "source_directory": str(result.metadata.source_directory),
-            "total_files": total,
-            "files_with_frontmatter": with_fm,
-            "files_without_frontmatter": without_fm,
-            "errors": errors,
-        },
-        "files": [
-            {
-                "file_path": str(f.file_path),
-                "frontmatter": f.frontmatter,
-                "status": f.status,
-                "error": f.error,
-                "stats": {
-                    "file_size": f.stats.file_size,
-                    "modified_time": f.stats.modified_time,
-                    "access_time": f.stats.access_time,
-                }
-                if f.stats
-                else None,
-                "file_hash": f.file_hash,
-            }
-            for f in filtered_files
-        ],
-        "matched_links": [str(p) for p in matched_files],
-    }
+    traced_files = [
+        TracedFile(
+            file_path=str(f.file_path),
+            frontmatter=f.frontmatter,
+            status=f.status,
+            error=f.error,
+            stats=FileStats(
+                file_size=f.stats.file_size,
+                modified_time=f.stats.modified_time,
+                access_time=f.stats.access_time,
+            )
+            if f.stats
+            else None,
+            file_hash=f.file_hash,
+        )
+        for f in filtered_files
+    ]
+
+    return TraceResponse(
+        note_path=str(note_path),
+        vault_root=str(vault_root),
+        options=resolved_options,
+        metadata=TraceMetadata(
+            source_directory=str(result.metadata.source_directory),
+            total_files=total,
+            files_with_frontmatter=with_fm,
+            files_without_frontmatter=without_fm,
+            errors=errors,
+        ),
+        files=traced_files,
+        matched_links=[str(p) for p in matched_files],
+    )
