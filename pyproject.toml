@@ -1,0 +1,127 @@
+[project]
+name = "link-tracer"
+version = "0.1.0"
+description = "Trace Obsidian note links to filesystem sources via CLI JSON or Python API dict output."
+readme = "README.md"
+requires-python = ">=3.12"
+
+keywords = [
+    "python",
+    "obsidian",
+    "markdown",
+    "links",
+    "cli",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+
+dependencies = []
+license = {file = "LICENSE"}
+authors = [
+    {name = "Christian Gröling", email = "contact@christiangroeling.de"}
+]
+
+
+
+[project.urls]
+Homepage = "https://github.com/chgroeling/link-tracer"
+Repository = "https://github.com/chgroeling/link-tracer"
+Issues = "https://github.com/chgroeling/link-tracer/issues"
+
+[project.scripts]
+link-tracer = "link_tracer.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/link_tracer"]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+]
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.0.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "S",     # flake8-bandit (security issues)
+    "PERF",  # perflint (performance anti-patterns)
+    "LOG",   # flake8-logging (logging-specific issues)
+    "BLE",   # flake8-blind-except (prevents catch-all except: clauses)
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort (import sorting)
+    "B",     # flake8-bugbear (common design flaws and bugs)
+    "C4",    # flake8-comprehensions
+    "UP",    # pyupgrade (upgrades syntax to modern Python)
+    "ARG",   # flake8-unused-arguments
+    "SIM",   # flake8-simplify (reduces code complexity)
+    "TCH",   # flake8-type-checking (manages type-checking imports)
+    "PTH",   # flake8-use-pathlib (enforces modern path handling)
+    "ASYNC", # flake8-async (asyncio-specific best practices)
+    "FLY",   # flynt (converts static strings to f-strings)
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = [
+    "S101",  # allow pytest assertions in tests
+]
+
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_unimported = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+check_untyped_defs = true
+strict_equality = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+    "--verbose",
+]
