@@ -171,17 +171,9 @@ def resolve_links(
     resolved_note = note_path.resolve()
     resolved_vault = vault_index.vault_root.resolve()
 
-    try:
-        source_note = str(resolved_note.relative_to(resolved_vault))
-    except ValueError:
-        source_note = str(resolved_note)
-
     source_entry: FileEntry | None = None  # type: ignore[no-any-unimported]
     try:
-        resolved_note.relative_to(resolved_vault)
-    except ValueError:
-        pass
-    else:
+        source_note = str(resolved_note.relative_to(resolved_vault))
         source_entry = next(
             (
                 f
@@ -190,6 +182,8 @@ def resolve_links(
             ),
             None,
         )
+    except ValueError:
+        source_note = str(resolved_note)
 
     if resolved_options.depth == 0:
         if source_entry is None:
