@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import time
 from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import structlog
 from matterify import scan_directory
 from obsilink import extract_links
 
@@ -19,6 +21,8 @@ from link_tracer.models import (
     VaultIndex,
     _normalize_lookup_key,
 )
+
+logger = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
     from matterify.models import AggregatedResult, FileEntry
@@ -94,7 +98,18 @@ def build_vault_index(  # type: ignore[no-any-unimported]
     Returns:
         VaultIndex with prebuilt lookup maps.
     """
-    return VaultIndex.from_scan_result(vault_root, scan_result)
+    start = time.monotonic()
+    logger.debug("build_vault_index.start")
+
+    index = VaultIndex.from_scan_result(vault_root, scan_result)
+
+    duration = time.monotonic() - start
+    logger.debug(
+        "build_vault_index.complete",
+        duration=round(duration, 4),
+        file_count=len(index.files),
+    )
+    return index
 
 
 def scan_vault(vault_root: Path) -> VaultIndex:
@@ -106,8 +121,19 @@ def scan_vault(vault_root: Path) -> VaultIndex:
     Returns:
         VaultIndex with scan results and prebuilt lookup maps.
     """
+    start = time.monotonic()
+    logger.debug("scan_vault.start", vault_root=str(vault_root))
+
     scan_result = scan_directory(vault_root)
-    return build_vault_index(vault_root, scan_result)
+    index = build_vault_index(vault_root, scan_result)
+
+    duration = time.monotonic() - start
+    logger.debug(
+        "scan_vault.complete",
+        duration=round(duration, 4),
+        file_count=len(index.files),
+    )
+    return index
 
 
 def _traverse_links(
@@ -127,6 +153,9 @@ def _traverse_links(
     Returns:
         Tuple of matched file paths and outgoing link edges by originating note.
     """
+    start = time.monotonic()
+    logger.debug("traverse_links.start", depth=options.depth)
+
     visited: set[Path] = set()
     matched_files: list[Path] = []
     edges: dict[str, list[LinkEdge]] = {}
@@ -186,6 +215,13 @@ def _traverse_links(
         if outgoing_links:
             edges[source_note] = outgoing_links
 
+    duration = time.monotonic() - start
+    logger.debug(
+        "traverse_links.complete",
+        duration=round(duration, 4),
+        visited=len(visited),
+        edges=len(edges),
+    )
     return matched_files, edges
 
 
@@ -205,7 +241,9 @@ def resolve_links(
     Returns:
         ResolveResponse with matched files and metadata.
     """
+    start = time.monotonic()
     resolved_options = options or ResolveOptions()
+    logger.debug("resolve_links.start", note=str(note_path), depth=resolved_options.depth)
 
     resolved_note = note_path.resolve()
     resolved_vault = vault_index.vault_root.resolve()
@@ -240,8 +278,7 @@ def resolve_links(
             resolved_files = [ResolvedFile.from_file_entry(source_entry)]
 
         metadata = ResolveMetadata.from_files(vault_index.source_directory, resolved_files)
-
-        return ResolveResponse(
+        response = ResolveResponse(
             vault_root=str(vault_index.vault_root),
             source_note=source_note,
             options=resolved_options,
@@ -249,39 +286,48 @@ def resolve_links(
             files=resolved_files,
             edges={},
         )
+    else:
+        matched_files, edges = _traverse_links(
+            vault_index, resolved_vault, resolved_note, resolved_options
+        )
 
-    matched_files, edges = _traverse_links(
-        vault_index, resolved_vault, resolved_note, resolved_options
+        matched_paths = {str(path) for path in matched_files}
+        filtered_files = [f for f in vault_index.files if str(f.file_path) in matched_paths]
+
+        if source_entry and source_entry not in filtered_files:
+            filtered_files = [source_entry, *filtered_files]
+
+        resolved_files = [ResolvedFile.from_file_entry(f) for f in filtered_files]
+
+        if source_entry is None:
+            resolved_files = [
+                ResolvedFile(
+                    file_path=str(resolved_note),
+                    frontmatter={},
+                    status="ok",
+                    error=None,
+                    stats=None,
+                    file_hash=None,
+                ),
+                *resolved_files,
+            ]
+
+        metadata = ResolveMetadata.from_files(vault_index.source_directory, resolved_files)
+
+        response = ResolveResponse(
+            vault_root=str(vault_index.vault_root),
+            source_note=source_note,
+            options=resolved_options,
+            metadata=metadata,
+            files=resolved_files,
+            edges=edges,
+        )
+
+    duration = time.monotonic() - start
+    logger.debug(
+        "resolve_links.complete",
+        duration=round(duration, 4),
+        files=len(response.files),
+        edges=len(response.edges),
     )
-
-    matched_paths = {str(path) for path in matched_files}
-    filtered_files = [f for f in vault_index.files if str(f.file_path) in matched_paths]
-
-    if source_entry and source_entry not in filtered_files:
-        filtered_files = [source_entry, *filtered_files]
-
-    resolved_files = [ResolvedFile.from_file_entry(f) for f in filtered_files]
-
-    if source_entry is None:
-        resolved_files = [
-            ResolvedFile(
-                file_path=str(resolved_note),
-                frontmatter={},
-                status="ok",
-                error=None,
-                stats=None,
-                file_hash=None,
-            ),
-            *resolved_files,
-        ]
-
-    metadata = ResolveMetadata.from_files(vault_index.source_directory, resolved_files)
-
-    return ResolveResponse(
-        vault_root=str(vault_index.vault_root),
-        source_note=source_note,
-        options=resolved_options,
-        metadata=metadata,
-        files=resolved_files,
-        edges=edges,
-    )
+    return response
