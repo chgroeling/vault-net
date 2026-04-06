@@ -60,15 +60,18 @@ def resolve_vault_root(cli_value: Path | None) -> Path:
     default=None,
     help="Vault root directory (overrides VAULT_ROOT env and .vault file)",
 )
-@click.option("--follow-chain", is_flag=True, help="Follow links recursively")
-@click.option("--max-depth", type=int, default=None, help="Traversal depth limit")
+@click.option(
+    "--depth",
+    type=int,
+    default=1,
+    help="Traversal depth (0=source only, 1=direct links, 2+=recursive)",
+)
 @click.option("--debug", is_flag=True, help="Enable debug-level structured logging to stderr")
 @click.option("--verbose", is_flag=True, help="Enable verbose console output")
 def main(
     note: Path,
     vault_root: Path | None,
-    follow_chain: bool,
-    max_depth: int | None,
+    depth: int,
     debug: bool,
     verbose: bool,
 ) -> int:
@@ -80,7 +83,7 @@ def main(
         "Starting link tracer", note=str(note), vault_root=str(vault_root) if vault_root else None
     )
     vault_root = resolve_vault_root(vault_root)
-    options = ResolveOptions(follow_chain=follow_chain, max_depth=max_depth)
+    options = ResolveOptions(depth=depth)
     logger.info("Tracing links", note=str(note))
     vault_index = scan_vault(vault_root)
     response = resolve_links(note_path=note, vault_index=vault_index, options=options)

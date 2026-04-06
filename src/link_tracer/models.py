@@ -46,8 +46,11 @@ def _build_vault_lookups(
 class ResolveOptions:
     """Store traversal options used for a resolve request."""
 
-    follow_chain: bool = False
-    max_depth: int | None = None
+    depth: int = 1
+
+    def __post_init__(self) -> None:
+        if self.depth < 0:
+            raise ValueError(f"depth must be >= 0, got {self.depth}")
 
 
 @dataclass(frozen=True, slots=True)

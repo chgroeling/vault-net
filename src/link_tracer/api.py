@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -116,19 +117,6 @@ def resolve_links(
     """
     resolved_options = options or ResolveOptions()
 
-    content = note_path.read_text(encoding="utf-8")
-    links = extract_links(content)
-    file_links = [link for link in links if link.is_file]
-
-    matched_files = []
-    for link in file_links:
-        matched = _resolve_link_to_file(link.as_path, vault_index)
-        if matched:
-            matched_files.append(matched)
-
-    matched_paths = {str(path) for path in matched_files}
-    filtered_files = [f for f in vault_index.files if str(f.file_path) in matched_paths]
-
     resolved_note = note_path.resolve()
     resolved_vault = vault_index.vault_root.resolve()
 
@@ -151,6 +139,64 @@ def resolve_links(
             ),
             None,
         )
+
+    if resolved_options.depth == 0:
+        if source_entry is None:
+            resolved_files = [
+                ResolvedFile(
+                    file_path=str(resolved_note),
+                    frontmatter={},
+                    status="ok",
+                    error=None,
+                    stats=None,
+                    file_hash=None,
+                ),
+            ]
+        else:
+            resolved_files = [ResolvedFile.from_file_entry(source_entry)]
+
+        metadata = ResolveMetadata.from_files(vault_index.source_directory, resolved_files)
+
+        return ResolveResponse(
+            vault_root=str(vault_index.vault_root),
+            source_note=source_note,
+            options=resolved_options,
+            metadata=metadata,
+            files=resolved_files,
+            matched_links=[],
+        )
+
+    visited: set[Path] = set()
+    matched_files: list[Path] = []
+
+    queue: deque[tuple[Path, int]] = deque()
+    queue.append((note_path, 1))
+    visited.add(resolved_note)
+
+    while queue:
+        current_note_path, current_depth = queue.popleft()
+
+        if current_depth > resolved_options.depth:
+            break
+
+        content = current_note_path.read_text(encoding="utf-8")
+        links = extract_links(content)
+        file_links = [link for link in links if link.is_file]
+
+        for link in file_links:
+            matched = _resolve_link_to_file(link.as_path, vault_index)
+            if matched is None:
+                continue
+            resolved_child = (resolved_vault / matched).resolve()
+            if resolved_child not in visited:
+                matched_files.append(matched)
+                visited.add(resolved_child)
+
+                if current_depth < resolved_options.depth:
+                    queue.append((resolved_child, current_depth + 1))
+
+    matched_paths = {str(path) for path in matched_files}
+    filtered_files = [f for f in vault_index.files if str(f.file_path) in matched_paths]
 
     if source_entry and source_entry not in filtered_files:
         filtered_files = [source_entry, *filtered_files]

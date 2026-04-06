@@ -6,13 +6,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from link_tracer.api import (
     _resolve_link_to_file,
     build_vault_context,
     resolve_links,
     scan_vault,
 )
-from link_tracer.models import VaultIndex, _build_vault_lookups
+from link_tracer.models import ResolveOptions, VaultIndex, _build_vault_lookups
 
 
 @dataclass
@@ -185,3 +187,98 @@ def test_resolve_links_multiple_calls_reuse_same_index() -> None:
         resolve_links(vault_root / "about.md", vault_index)
 
     mock_scan.assert_not_called()
+
+
+def test_resolve_options_rejects_negative_depth() -> None:
+    """ResolveOptions raises ValueError for depth < 0."""
+    with pytest.raises(ValueError, match="depth must be >= 0"):
+        ResolveOptions(depth=-1)
+
+
+def test_resolve_links_depth_zero_returns_source_only(tmp_path: Path) -> None:
+    """depth=0 returns only the source note with no matched links."""
+    vault_root = tmp_path / "vault"
+    vault_root.mkdir()
+    (vault_root / "home.md").write_text("---\ntitle: Home\n---\n[[about]]", encoding="utf-8")
+    (vault_root / "about.md").write_text("---\ntitle: About\n---\n[[contact]]", encoding="utf-8")
+    (vault_root / "contact.md").write_text("---\ntitle: Contact\n---\nNo links", encoding="utf-8")
+
+    vault_index = scan_vault(vault_root)
+    response = resolve_links(vault_root / "home.md", vault_index, options=ResolveOptions(depth=0))
+
+    assert len(response.files) == 1
+    assert "home.md" in response.files[0].file_path
+    assert response.matched_links == []
+
+
+def test_resolve_links_depth_one_returns_direct_links(tmp_path: Path) -> None:
+    """depth=1 returns source note and its direct link targets."""
+    vault_root = tmp_path / "vault"
+    vault_root.mkdir()
+    (vault_root / "home.md").write_text("---\ntitle: Home\n---\n[[about]]", encoding="utf-8")
+    (vault_root / "about.md").write_text("---\ntitle: About\n---\n[[contact]]", encoding="utf-8")
+    (vault_root / "contact.md").write_text("---\ntitle: Contact\n---\nNo links", encoding="utf-8")
+
+    vault_index = scan_vault(vault_root)
+    response = resolve_links(vault_root / "home.md", vault_index, options=ResolveOptions(depth=1))
+
+    assert len(response.files) == 2
+    assert len(response.matched_links) == 1
+    assert any("about.md" in link for link in response.matched_links)
+
+
+def test_resolve_links_depth_two_returns_children_links(tmp_path: Path) -> None:
+    """depth=2 returns source, direct links, and links from children."""
+    vault_root = tmp_path / "vault"
+    vault_root.mkdir()
+    (vault_root / "home.md").write_text("---\ntitle: Home\n---\n[[about]]", encoding="utf-8")
+    (vault_root / "about.md").write_text("---\ntitle: About\n---\n[[contact]]", encoding="utf-8")
+    (vault_root / "contact.md").write_text(
+        "---\ntitle: Contact\n---\n[[archive]]", encoding="utf-8"
+    )
+    (vault_root / "archive.md").write_text("---\ntitle: Archive\n---\nNo links", encoding="utf-8")
+
+    vault_index = scan_vault(vault_root)
+    response = resolve_links(vault_root / "home.md", vault_index, options=ResolveOptions(depth=2))
+
+    assert len(response.files) == 3
+    assert len(response.matched_links) == 2
+    assert any("about.md" in link for link in response.matched_links)
+    assert any("contact.md" in link for link in response.matched_links)
+
+
+def test_resolve_links_depth_three_returns_grandchildren_links(tmp_path: Path) -> None:
+    """depth=3 traverses three levels deep."""
+    vault_root = tmp_path / "vault"
+    vault_root.mkdir()
+    (vault_root / "a.md").write_text("---\ntitle: A\n---\n[[b]]", encoding="utf-8")
+    (vault_root / "b.md").write_text("---\ntitle: B\n---\n[[c]]", encoding="utf-8")
+    (vault_root / "c.md").write_text("---\ntitle: C\n---\n[[d]]", encoding="utf-8")
+    (vault_root / "d.md").write_text("---\ntitle: D\n---\n[[e]]", encoding="utf-8")
+    (vault_root / "e.md").write_text("---\ntitle: E\n---\nNo links", encoding="utf-8")
+
+    vault_index = scan_vault(vault_root)
+    response = resolve_links(vault_root / "a.md", vault_index, options=ResolveOptions(depth=3))
+
+    assert len(response.files) == 4
+    assert len(response.matched_links) == 3
+
+
+def test_resolve_links_circular_links_no_infinite_loop(tmp_path: Path) -> None:
+    """Circular links (A->B->A) do not cause infinite loop."""
+    vault_root = tmp_path / "vault"
+    vault_root.mkdir()
+    (vault_root / "a.md").write_text("---\ntitle: A\n---\n[[b]]", encoding="utf-8")
+    (vault_root / "b.md").write_text("---\ntitle: B\n---\n[[a]]", encoding="utf-8")
+
+    vault_index = scan_vault(vault_root)
+    response = resolve_links(vault_root / "a.md", vault_index, options=ResolveOptions(depth=5))
+
+    assert len(response.files) == 2
+    assert len(response.matched_links) == 1
+
+
+def test_resolve_links_default_depth_is_one() -> None:
+    """Default ResolveOptions uses depth=1."""
+    options = ResolveOptions()
+    assert options.depth == 1
