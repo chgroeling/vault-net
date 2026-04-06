@@ -70,7 +70,7 @@ def _resolve_link_to_file(
     return vault_index.stem_to_file.get(target_path.stem.lower())
 
 
-def build_vault_context(  # type: ignore[no-any-unimported]
+def build_vault_index(  # type: ignore[no-any-unimported]
     vault_root: Path,
     scan_result: AggregatedResult,
 ) -> VaultIndex:
@@ -96,7 +96,58 @@ def scan_vault(vault_root: Path) -> VaultIndex:
         VaultIndex with scan results and prebuilt lookup maps.
     """
     scan_result = scan_directory(vault_root)
-    return build_vault_context(vault_root, scan_result)
+    return build_vault_index(vault_root, scan_result)
+
+
+def _traverse_links(
+    note_path: Path,
+    vault_index: VaultIndex,
+    resolved_vault: Path,
+    resolved_note: Path,
+    options: ResolveOptions,
+) -> list[Path]:
+    """BFS traversal of note links up to the specified depth.
+
+    Args:
+        note_path: Path to the starting note file.
+        vault_index: Prebuilt VaultIndex with lookup maps.
+        resolved_vault: Resolved absolute path of the vault root.
+        resolved_note: Resolved absolute path of the source note.
+        options: Resolve options including depth.
+
+    Returns:
+        List of matched file paths (relative) discovered during traversal.
+    """
+    visited: set[Path] = set()
+    matched_files: list[Path] = []
+
+    queue: deque[tuple[Path, int]] = deque()
+    queue.append((note_path, 1))
+    visited.add(resolved_note)
+
+    while queue:
+        current_note_path, current_depth = queue.popleft()
+
+        if current_depth > options.depth:
+            break
+
+        content = current_note_path.read_text(encoding="utf-8")
+        links = extract_links(content)
+        file_links = [link for link in links if link.is_file]
+
+        for link in file_links:
+            matched = _resolve_link_to_file(link.as_path, vault_index)
+            if matched is None:
+                continue
+            resolved_child = (resolved_vault / matched).resolve()
+            if resolved_child not in visited:
+                matched_files.append(matched)
+                visited.add(resolved_child)
+
+                if current_depth < options.depth:
+                    queue.append((resolved_child, current_depth + 1))
+
+    return matched_files
 
 
 def resolve_links(
@@ -109,7 +160,7 @@ def resolve_links(
 
     Args:
         note_path: Path to the note file to trace.
-        vault_index: Prebuilt VaultIndex from scan_vault() or build_vault_context().
+        vault_index: Prebuilt VaultIndex from scan_vault() or build_vault_index().
         options: Optional resolve options.
 
     Returns:
@@ -166,34 +217,9 @@ def resolve_links(
             matched_links=[],
         )
 
-    visited: set[Path] = set()
-    matched_files: list[Path] = []
-
-    queue: deque[tuple[Path, int]] = deque()
-    queue.append((note_path, 1))
-    visited.add(resolved_note)
-
-    while queue:
-        current_note_path, current_depth = queue.popleft()
-
-        if current_depth > resolved_options.depth:
-            break
-
-        content = current_note_path.read_text(encoding="utf-8")
-        links = extract_links(content)
-        file_links = [link for link in links if link.is_file]
-
-        for link in file_links:
-            matched = _resolve_link_to_file(link.as_path, vault_index)
-            if matched is None:
-                continue
-            resolved_child = (resolved_vault / matched).resolve()
-            if resolved_child not in visited:
-                matched_files.append(matched)
-                visited.add(resolved_child)
-
-                if current_depth < resolved_options.depth:
-                    queue.append((resolved_child, current_depth + 1))
+    matched_files = _traverse_links(
+        note_path, vault_index, resolved_vault, resolved_note, resolved_options
+    )
 
     matched_paths = {str(path) for path in matched_files}
     filtered_files = [f for f in vault_index.files if str(f.file_path) in matched_paths]
