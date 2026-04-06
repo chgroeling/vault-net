@@ -11,9 +11,9 @@ import click
 import structlog
 from dotenv import dotenv_values, find_dotenv
 
-from link_tracer.api import trace_links
+from link_tracer.api import resolve_links, scan_vault
 from link_tracer.logging import configure_debug_logging, get_console
-from link_tracer.models import TraceOptions
+from link_tracer.models import ResolveOptions
 
 logger = structlog.get_logger(__name__)
 
@@ -80,9 +80,10 @@ def main(
         "Starting link tracer", note=str(note), vault_root=str(vault_root) if vault_root else None
     )
     vault_root = resolve_vault_root(vault_root)
-    options = TraceOptions(follow_chain=follow_chain, max_depth=max_depth)
+    options = ResolveOptions(follow_chain=follow_chain, max_depth=max_depth)
     logger.info("Tracing links", note=str(note))
-    response = trace_links(note_path=note, vault_root=vault_root, options=options)
+    vault_index = scan_vault(vault_root)
+    response = resolve_links(note_path=note, vault_index=vault_index, options=options)
     click.echo(json.dumps(asdict(response), indent=2))
     console.print("Link tracing complete")
     logger.info("Link tracing complete")

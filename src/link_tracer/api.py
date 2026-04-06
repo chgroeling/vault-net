@@ -1,19 +1,24 @@
-"""Public API boundary for link tracing."""
+"""Public API boundary for link resolution."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from matterify import scan_directory
 from obsilink import extract_links
 
 from link_tracer.models import (
     FileStats,
-    TracedFile,
-    TraceMetadata,
-    TraceOptions,
-    TraceResponse,
+    ResolvedFile,
+    ResolveMetadata,
+    ResolveOptions,
+    ResolveResponse,
+    VaultIndex,
 )
+
+if TYPE_CHECKING:
+    from matterify.models import AggregatedResult
 
 _POSSIBLE_EXTENSIONS = (".md", ".MD", ".markdown")
 
@@ -52,17 +57,13 @@ def _build_vault_lookups(
 
 def _resolve_link_to_file(
     link_path: Path,
-    name_to_file: dict[str, Path],
-    stem_to_file: dict[str, Path],
-    relative_path_to_file: dict[str, Path],
+    vault_index: VaultIndex,
 ) -> Path | None:
     """Resolve a file-like link target to a scanned vault file.
 
     Args:
         link_path: Link target as Path from obsilink (target only, no heading/block)
-        name_to_file: Case-insensitive filename lookup map.
-        stem_to_file: Case-insensitive stem lookup map.
-        relative_path_to_file: Case-insensitive relative-path lookup map.
+        vault_index: Prebuilt vault index with lookup maps.
 
     Returns:
         Matching file path or None
@@ -75,11 +76,11 @@ def _resolve_link_to_file(
     target_path = Path(target_str)
     target_key = _normalize_lookup_key(target_path)
 
-    path_match = relative_path_to_file.get(target_key)
+    path_match = vault_index.relative_path_to_file.get(target_key)
     if path_match:
         return path_match
 
-    direct_match = name_to_file.get(target_path.name.lower())
+    direct_match = vault_index.name_to_file.get(target_path.name.lower())
     if direct_match:
         return direct_match
 
@@ -87,28 +88,75 @@ def _resolve_link_to_file(
         candidate = (
             target_path.with_suffix(ext) if target_path.suffix else Path(f"{target_str}{ext}")
         )
-        candidate_path_match = relative_path_to_file.get(_normalize_lookup_key(candidate))
+        candidate_path_match = vault_index.relative_path_to_file.get(
+            _normalize_lookup_key(candidate)
+        )
         if candidate_path_match:
             return candidate_path_match
 
-        candidate_match = name_to_file.get(candidate.name.lower())
+        candidate_match = vault_index.name_to_file.get(candidate.name.lower())
         if candidate_match:
             return candidate_match
 
-    return stem_to_file.get(target_path.stem.lower())
+    return vault_index.stem_to_file.get(target_path.stem.lower())
 
 
-def trace_links(
-    note_path: Path,
+def build_vault_context(  # type: ignore[no-any-unimported]
     vault_root: Path,
-    *,
-    options: TraceOptions | None = None,
-) -> TraceResponse:
-    """Scan vault directory and return structured trace response."""
-    resolved_options = options or TraceOptions()
-    result = scan_directory(vault_root)
-    vault_files = [Path(f.file_path) for f in result.files]
+    scan_result: AggregatedResult,
+) -> VaultIndex:
+    """Build a VaultIndex from an existing scan result.
+
+    Args:
+        vault_root: Root directory of the vault.
+        scan_result: AggregatedResult from matterify.scan_directory().
+
+    Returns:
+        VaultIndex with prebuilt lookup maps.
+    """
+    vault_files = [Path(f.file_path) for f in scan_result.files]
     name_to_file, stem_to_file, relative_path_to_file = _build_vault_lookups(vault_files)
+
+    return VaultIndex(
+        vault_root=vault_root,
+        files=scan_result.files,
+        source_directory=str(scan_result.metadata.source_directory),
+        name_to_file=name_to_file,
+        stem_to_file=stem_to_file,
+        relative_path_to_file=relative_path_to_file,
+    )
+
+
+def scan_vault(vault_root: Path) -> VaultIndex:
+    """Scan vault directory and build a VaultIndex.
+
+    Args:
+        vault_root: Root directory of the vault.
+
+    Returns:
+        VaultIndex with scan results and prebuilt lookup maps.
+    """
+    scan_result = scan_directory(vault_root)
+    return build_vault_context(vault_root, scan_result)
+
+
+def resolve_links(
+    note_path: Path,
+    vault_index: VaultIndex,
+    *,
+    options: ResolveOptions | None = None,
+) -> ResolveResponse:
+    """Resolve links in a note against a prebuilt vault index.
+
+    Args:
+        note_path: Path to the note file to trace.
+        vault_index: Prebuilt VaultIndex from scan_vault() or build_vault_context().
+        options: Optional resolve options.
+
+    Returns:
+        ResolveResponse with matched files and metadata.
+    """
+    resolved_options = options or ResolveOptions()
 
     content = note_path.read_text(encoding="utf-8")
     links = extract_links(content)
@@ -116,20 +164,15 @@ def trace_links(
 
     matched_files = []
     for link in file_links:
-        matched = _resolve_link_to_file(
-            link.as_path,
-            name_to_file,
-            stem_to_file,
-            relative_path_to_file,
-        )
+        matched = _resolve_link_to_file(link.as_path, vault_index)
         if matched:
             matched_files.append(matched)
 
     matched_paths = {str(path) for path in matched_files}
-    filtered_files = [f for f in result.files if str(f.file_path) in matched_paths]
+    filtered_files = [f for f in vault_index.files if str(f.file_path) in matched_paths]
 
     source_entry = next(
-        (f for f in result.files if (vault_root / Path(f.file_path)) == note_path),
+        (f for f in vault_index.files if (vault_index.vault_root / Path(f.file_path)) == note_path),
         None,
     )
     if source_entry and source_entry not in filtered_files:
@@ -140,8 +183,8 @@ def trace_links(
     without_fm = total - with_fm
     errors = sum(1 for f in filtered_files if f.status != "ok")
 
-    traced_files = [
-        TracedFile(
+    resolved_files = [
+        ResolvedFile(
             file_path=str(f.file_path),
             frontmatter=f.frontmatter,
             status=f.status,
@@ -158,17 +201,16 @@ def trace_links(
         for f in filtered_files
     ]
 
-    return TraceResponse(
-        note_path=str(note_path),
-        vault_root=str(vault_root),
+    return ResolveResponse(
+        vault_root=str(vault_index.vault_root),
         options=resolved_options,
-        metadata=TraceMetadata(
-            source_directory=str(result.metadata.source_directory),
+        metadata=ResolveMetadata(
+            source_directory=vault_index.source_directory,
             total_files=total,
             files_with_frontmatter=with_fm,
             files_without_frontmatter=without_fm,
             errors=errors,
         ),
-        files=traced_files,
+        files=resolved_files,
         matched_links=[str(p) for p in matched_files],
     )

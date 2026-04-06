@@ -1,34 +1,27 @@
-"""Typed models for link tracing results."""
+"""Typed models for link resolution results."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from matterify.models import FileEntry
+
 
 @dataclass(frozen=True, slots=True)
-class TraceOptions:
-    """Store traversal options used for a trace request."""
+class ResolveOptions:
+    """Store traversal options used for a resolve request."""
 
     follow_chain: bool = False
     max_depth: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class TraceRequest:
-    """Describe the source note and vault for a trace run."""
-
-    note_path: Path
-    vault_root: Path
-    options: TraceOptions = field(default_factory=TraceOptions)
-
-
-@dataclass(frozen=True, slots=True)
 class FileStats:
-    """File system statistics for a traced file."""
+    """File system statistics for a resolved file."""
 
     file_size: int
     modified_time: float
@@ -36,8 +29,8 @@ class FileStats:
 
 
 @dataclass(frozen=True, slots=True)
-class TracedFile:
-    """Represents a file discovered during link tracing."""
+class ResolvedFile:
+    """Represents a file discovered during link resolution."""
 
     file_path: str
     frontmatter: dict[str, Any]
@@ -48,8 +41,8 @@ class TracedFile:
 
 
 @dataclass(frozen=True, slots=True)
-class TraceMetadata:
-    """Metadata summary for a trace result."""
+class ResolveMetadata:
+    """Metadata summary for a resolution result."""
 
     source_directory: str
     total_files: int
@@ -59,12 +52,23 @@ class TraceMetadata:
 
 
 @dataclass(frozen=True, slots=True)
-class TraceResponse:
-    """Complete result of a link trace operation."""
+class ResolveResponse:
+    """Complete result of a link resolution operation."""
 
-    note_path: str
     vault_root: str
-    options: TraceOptions
-    metadata: TraceMetadata
-    files: list[TracedFile]
+    options: ResolveOptions
+    metadata: ResolveMetadata
+    files: list[ResolvedFile]
     matched_links: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class VaultIndex:  # type: ignore[no-any-unimported]
+    """Immutable vault index with prebuilt lookup maps."""
+
+    vault_root: Path
+    files: list[FileEntry]  # type: ignore[no-any-unimported]
+    source_directory: str
+    name_to_file: dict[str, Path]
+    stem_to_file: dict[str, Path]
+    relative_path_to_file: dict[str, Path]

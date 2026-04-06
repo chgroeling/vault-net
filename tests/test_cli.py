@@ -28,7 +28,6 @@ def test_cli_prints_stub_payload(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["note_path"] == str(note)
     assert payload["vault_root"] == str(tmp_path)
     assert "metadata" in payload
     assert "files" in payload
@@ -185,8 +184,6 @@ def test_cli_pretty_print(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "  " in result.output
-    payload = json.loads(result.output)
-    assert payload["note_path"] == str(note)
 
 
 def test_trace_filters_files_to_matched_links(tmp_path: Path) -> None:

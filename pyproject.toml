@@ -127,6 +127,10 @@ module = "matterify"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = "matterify.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "obsilink"
 ignore_missing_imports = true
 
