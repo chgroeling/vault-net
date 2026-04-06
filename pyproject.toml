@@ -142,3 +142,6 @@ addopts = [
     "-ra",
     "--verbose",
 ]
+
+[tool.uv.sources]
+matterify = { path = "../matterify", editable = true }

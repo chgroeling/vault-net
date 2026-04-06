@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from matterify import scan_directory
-from matterify.cache import clear_cache as _clear_cache
 from obsilink import extract_links
 
 from link_tracer.models import (
@@ -17,14 +16,6 @@ from link_tracer.models import (
 )
 
 _POSSIBLE_EXTENSIONS = (".md", ".MD", ".markdown")
-
-
-def clear_cache() -> None:
-    """Clear the in-memory scan cache.
-
-    Reserved for future use with link-tracer's own cache handling.
-    """
-    _clear_cache()
 
 
 def _normalize_lookup_key(path: Path) -> str:
@@ -115,7 +106,7 @@ def trace_links(
 ) -> TraceResponse:
     """Scan vault directory and return structured trace response."""
     resolved_options = options or TraceOptions()
-    result = scan_directory(vault_root, force_refresh=resolved_options.force_refresh)
+    result = scan_directory(vault_root)
     vault_files = [Path(f.file_path) for f in result.files]
     name_to_file, stem_to_file, relative_path_to_file = _build_vault_lookups(vault_files)
 

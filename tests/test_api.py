@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from link_tracer.api import _build_vault_lookups, _resolve_link_to_file, clear_cache
+from link_tracer.api import _build_vault_lookups, _resolve_link_to_file
 
 
 def test_resolve_link_returns_first_match_for_duplicate_names() -> None:
@@ -53,37 +53,11 @@ def test_resolve_link_uses_path_component_to_disambiguate() -> None:
     assert matched == Path("teams/about.md")
 
 
-def test_clear_cache_calls_matterify_clear_cache() -> None:
-    """clear_cache() delegates to matterify.cache.clear_cache."""
-    with patch("link_tracer.api._clear_cache") as mock_clear:
-        clear_cache()
-        mock_clear.assert_called_once()
-
-
-def test_trace_links_passes_force_refresh() -> None:
-    """trace_links() forwards force_refresh to scan_directory."""
-    from link_tracer.api import trace_links
-    from link_tracer.models import TraceOptions
-
-    vault = Path("/tmp/fake-vault")
-    note = vault / "note.md"
-
-    with (
-        patch("link_tracer.api.scan_directory") as mock_scan,
-        patch.object(Path, "read_text", return_value="[[other]]"),
-    ):
-        mock_scan.return_value.metadata.source_directory = vault
-        mock_scan.return_value.files = []
-
-        trace_links(note, vault, options=TraceOptions(force_refresh=True))
-        mock_scan.assert_called_once_with(vault, force_refresh=True)
-
-
-def test_trace_links_defaults_force_refresh_false() -> None:
-    """trace_links() defaults force_refresh to False."""
+def test_trace_links_defaults_no_options() -> None:
+    """trace_links() works with default options."""
     from link_tracer.api import trace_links
 
-    vault = Path("/tmp/fake-vault")
+    vault = Path("/tmp/fake-vault")  # noqa: S108
     note = vault / "note.md"
 
     with (
@@ -94,4 +68,4 @@ def test_trace_links_defaults_force_refresh_false() -> None:
         mock_scan.return_value.files = []
 
         trace_links(note, vault)
-        mock_scan.assert_called_once_with(vault, force_refresh=False)
+        mock_scan.assert_called_once_with(vault)
