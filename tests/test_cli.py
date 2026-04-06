@@ -209,8 +209,10 @@ def test_trace_filters_files_to_matched_links(tmp_path: Path) -> None:
     assert payload["files"][1]["file_path"].endswith("about.md")
     assert payload["files"][1]["frontmatter"] == {"title": "About", "tags": ["info"]}
     assert payload["files"][1]["status"] == "ok"
-    assert len(payload["matched_links"]) == 1
-    assert payload["matched_links"][0].endswith("about.md")
+    assert set(payload["edges"]) == {"home.md"}
+    assert payload["edges"]["home.md"][0]["target_note"] == "about.md"
+    assert payload["edges"]["home.md"][0]["resolved"] is True
+    assert payload["edges"]["home.md"][0]["link"]["target"].lower() == "about"
 
 
 def test_trace_filters_multiple_matched_files(tmp_path: Path) -> None:
@@ -230,7 +232,12 @@ def test_trace_filters_multiple_matched_files(tmp_path: Path) -> None:
     assert len(payload["files"]) == 4
     file_names = {f["file_path"].split("/")[-1] for f in payload["files"]}
     assert file_names == {"about.md", "projects.md", "tasks.md", "diagram.md"}
-    assert len(payload["matched_links"]) == 3
+    assert set(payload["edges"]) == {"about.md"}
+    assert [edge["target_note"] for edge in payload["edges"]["about.md"]] == [
+        "projects.md",
+        "tasks.md",
+        "diagram.md",
+    ]
 
 
 def test_trace_links_matches_link_without_extension(tmp_path: Path) -> None:
@@ -246,9 +253,9 @@ def test_trace_links_matches_link_without_extension(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert "matched_links" in payload
-    assert len(payload["matched_links"]) == 1
-    assert payload["matched_links"][0].endswith("about.md")
+    assert "edges" in payload
+    assert set(payload["edges"]) == {"home.md"}
+    assert payload["edges"]["home.md"][0]["target_note"] == "about.md"
 
 
 def test_trace_links_matches_link_with_uppercase_extension(tmp_path: Path) -> None:
@@ -264,8 +271,8 @@ def test_trace_links_matches_link_with_uppercase_extension(tmp_path: Path) -> No
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert len(payload["matched_links"]) == 1
-    assert payload["matched_links"][0].endswith("about.MD")
+    assert set(payload["edges"]) == {"home.md"}
+    assert payload["edges"]["home.md"][0]["target_note"] == "about.MD"
 
 
 def test_trace_links_matches_link_with_markdown_extension(tmp_path: Path) -> None:
@@ -281,8 +288,8 @@ def test_trace_links_matches_link_with_markdown_extension(tmp_path: Path) -> Non
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert len(payload["matched_links"]) == 1
-    assert payload["matched_links"][0].endswith("about.markdown")
+    assert set(payload["edges"]) == {"home.md"}
+    assert payload["edges"]["home.md"][0]["target_note"] == "about.markdown"
 
 
 def test_trace_links_matches_link_with_extension(tmp_path: Path) -> None:
@@ -298,8 +305,8 @@ def test_trace_links_matches_link_with_extension(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert len(payload["matched_links"]) == 1
-    assert payload["matched_links"][0].endswith("about.md")
+    assert set(payload["edges"]) == {"home.md"}
+    assert payload["edges"]["home.md"][0]["target_note"] == "about.md"
 
 
 def test_trace_links_matches_heading_reference(tmp_path: Path) -> None:
@@ -317,8 +324,8 @@ def test_trace_links_matches_heading_reference(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert len(payload["matched_links"]) == 1
-    assert payload["matched_links"][0].endswith("about.md")
+    assert set(payload["edges"]) == {"home.md"}
+    assert payload["edges"]["home.md"][0]["target_note"] == "about.md"
 
 
 def test_trace_links_matches_block_reference(tmp_path: Path) -> None:
@@ -334,8 +341,8 @@ def test_trace_links_matches_block_reference(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert len(payload["matched_links"]) == 1
-    assert payload["matched_links"][0].endswith("about.md")
+    assert set(payload["edges"]) == {"home.md"}
+    assert payload["edges"]["home.md"][0]["target_note"] == "about.md"
 
 
 def test_trace_links_uses_path_component_for_duplicate_names(tmp_path: Path) -> None:
@@ -348,6 +355,8 @@ def test_trace_links_uses_path_component_for_duplicate_names(tmp_path: Path) -> 
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert len(payload["matched_links"]) == 2
-    assert payload["matched_links"][0].endswith("docs/about.md")
-    assert payload["matched_links"][1].endswith("teams/about.md")
+    assert set(payload["edges"]) == {"home.md"}
+    assert [edge["target_note"] for edge in payload["edges"]["home.md"]] == [
+        "docs/about.md",
+        "teams/about.md",
+    ]

@@ -161,8 +161,9 @@ def test_resolve_links_uses_prebuilt_index() -> None:
         response = resolve_links(note_path, vault_index)
 
     assert response.vault_root == str(vault_root)
-    assert len(response.matched_links) == 1
-    assert any("about.md" in link for link in response.matched_links)
+    assert set(response.edges) == {"home.md"}
+    assert [edge.target_note for edge in response.edges["home.md"]] == ["about.md"]
+    assert response.edges["home.md"][0].resolved is True
 
 
 def test_resolve_links_multiple_calls_reuse_same_index() -> None:
@@ -196,7 +197,7 @@ def test_resolve_options_rejects_negative_depth() -> None:
 
 
 def test_resolve_links_depth_zero_returns_source_only(tmp_path: Path) -> None:
-    """depth=0 returns only the source note with no matched links."""
+    """depth=0 returns only the source note with no edges."""
     vault_root = tmp_path / "vault"
     vault_root.mkdir()
     (vault_root / "home.md").write_text("---\ntitle: Home\n---\n[[about]]", encoding="utf-8")
@@ -208,11 +209,11 @@ def test_resolve_links_depth_zero_returns_source_only(tmp_path: Path) -> None:
 
     assert len(response.files) == 1
     assert "home.md" in response.files[0].file_path
-    assert response.matched_links == []
+    assert response.edges == {}
 
 
 def test_resolve_links_depth_one_returns_direct_links(tmp_path: Path) -> None:
-    """depth=1 returns source note and its direct link targets."""
+    """depth=1 returns source note and direct outgoing link edges."""
     vault_root = tmp_path / "vault"
     vault_root.mkdir()
     (vault_root / "home.md").write_text("---\ntitle: Home\n---\n[[about]]", encoding="utf-8")
@@ -223,12 +224,12 @@ def test_resolve_links_depth_one_returns_direct_links(tmp_path: Path) -> None:
     response = resolve_links(vault_root / "home.md", vault_index, options=ResolveOptions(depth=1))
 
     assert len(response.files) == 2
-    assert len(response.matched_links) == 1
-    assert any("about.md" in link for link in response.matched_links)
+    assert set(response.edges) == {"home.md"}
+    assert [edge.target_note for edge in response.edges["home.md"]] == ["about.md"]
 
 
 def test_resolve_links_depth_two_returns_children_links(tmp_path: Path) -> None:
-    """depth=2 returns source, direct links, and links from children."""
+    """depth=2 returns outgoing edges for source and first-level children."""
     vault_root = tmp_path / "vault"
     vault_root.mkdir()
     (vault_root / "home.md").write_text("---\ntitle: Home\n---\n[[about]]", encoding="utf-8")
@@ -242,9 +243,9 @@ def test_resolve_links_depth_two_returns_children_links(tmp_path: Path) -> None:
     response = resolve_links(vault_root / "home.md", vault_index, options=ResolveOptions(depth=2))
 
     assert len(response.files) == 3
-    assert len(response.matched_links) == 2
-    assert any("about.md" in link for link in response.matched_links)
-    assert any("contact.md" in link for link in response.matched_links)
+    assert set(response.edges) == {"home.md", "about.md"}
+    assert [edge.target_note for edge in response.edges["home.md"]] == ["about.md"]
+    assert [edge.target_note for edge in response.edges["about.md"]] == ["contact.md"]
 
 
 def test_resolve_links_depth_three_returns_grandchildren_links(tmp_path: Path) -> None:
@@ -261,7 +262,7 @@ def test_resolve_links_depth_three_returns_grandchildren_links(tmp_path: Path) -
     response = resolve_links(vault_root / "a.md", vault_index, options=ResolveOptions(depth=3))
 
     assert len(response.files) == 4
-    assert len(response.matched_links) == 3
+    assert set(response.edges) == {"a.md", "b.md", "c.md"}
 
 
 def test_resolve_links_circular_links_no_infinite_loop(tmp_path: Path) -> None:
@@ -275,7 +276,31 @@ def test_resolve_links_circular_links_no_infinite_loop(tmp_path: Path) -> None:
     response = resolve_links(vault_root / "a.md", vault_index, options=ResolveOptions(depth=5))
 
     assert len(response.files) == 2
-    assert len(response.matched_links) == 1
+    assert set(response.edges) == {"a.md", "b.md"}
+    assert [edge.target_note for edge in response.edges["a.md"]] == ["b.md"]
+    assert [edge.target_note for edge in response.edges["b.md"]] == ["a.md"]
+
+
+def test_resolve_links_includes_unresolved_edges(tmp_path: Path) -> None:
+    """Unresolvable file links are reported as unresolved edges."""
+    vault_root = tmp_path / "vault"
+    vault_root.mkdir()
+    (vault_root / "home.md").write_text(
+        "---\ntitle: Home\n---\n[[about]] and [[missing-note]]", encoding="utf-8"
+    )
+    (vault_root / "about.md").write_text("---\ntitle: About\n---\nNo links", encoding="utf-8")
+
+    vault_index = scan_vault(vault_root)
+    response = resolve_links(vault_root / "home.md", vault_index, options=ResolveOptions(depth=1))
+
+    assert set(response.edges) == {"home.md"}
+    assert response.edges["home.md"][0].resolved is True
+    assert response.edges["home.md"][0].target_note == "about.md"
+    assert response.edges["home.md"][0].link.target == "about"
+    assert response.edges["home.md"][1].resolved is False
+    assert response.edges["home.md"][1].target_note is None
+    assert response.edges["home.md"][1].unresolved_reason == "not_found"
+    assert response.edges["home.md"][1].link.target == "missing-note"
 
 
 def test_resolve_links_default_depth_is_one() -> None:

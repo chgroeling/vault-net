@@ -63,6 +63,46 @@ class FileStats:
 
 
 @dataclass(frozen=True, slots=True)
+class ExtractedLink:
+    """Represents a serialized obsilink link used in API output."""
+
+    link_type: str
+    target: str
+    alias: str | None
+    heading: str | None
+    blockid: str | None
+
+    @classmethod
+    def from_obsilink_link(
+        cls,
+        *,
+        link_type: str,
+        target: str,
+        alias: str | None,
+        heading: str | None,
+        blockid: str | None,
+    ) -> ExtractedLink:
+        """Build an ExtractedLink from obsilink Link fields."""
+        return cls(
+            link_type=link_type,
+            target=target,
+            alias=alias,
+            heading=heading,
+            blockid=blockid,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class LinkEdge:
+    """Represents a directed edge from one note to a link target."""
+
+    link: ExtractedLink
+    resolved: bool
+    target_note: str | None = None
+    unresolved_reason: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ResolvedFile:
     """Represents a file discovered during link resolution."""
 
@@ -125,7 +165,7 @@ class ResolveResponse:
     options: ResolveOptions
     metadata: ResolveMetadata
     files: list[ResolvedFile]
-    matched_links: list[str]
+    edges: dict[str, list[LinkEdge]]
 
 
 @dataclass(frozen=True, slots=True)

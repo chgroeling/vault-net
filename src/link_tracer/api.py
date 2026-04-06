@@ -10,6 +10,8 @@ from matterify import scan_directory
 from obsilink import extract_links
 
 from link_tracer.models import (
+    ExtractedLink,
+    LinkEdge,
     ResolvedFile,
     ResolveMetadata,
     ResolveOptions,
@@ -22,6 +24,15 @@ if TYPE_CHECKING:
     from matterify.models import AggregatedResult, FileEntry
 
 _POSSIBLE_EXTENSIONS = (".md", ".MD", ".markdown")
+
+
+def _path_for_response(path: Path, resolved_vault: Path) -> str:
+    """Return a response-safe path string relative to vault when possible."""
+    resolved_path = path.resolve()
+    try:
+        return str(resolved_path.relative_to(resolved_vault))
+    except ValueError:
+        return str(resolved_path)
 
 
 def _resolve_link_to_file(
@@ -100,29 +111,28 @@ def scan_vault(vault_root: Path) -> VaultIndex:
 
 
 def _traverse_links(
-    note_path: Path,
     vault_index: VaultIndex,
     resolved_vault: Path,
     resolved_note: Path,
     options: ResolveOptions,
-) -> list[Path]:
+) -> tuple[list[Path], dict[str, list[LinkEdge]]]:
     """BFS traversal of note links up to the specified depth.
 
     Args:
-        note_path: Path to the starting note file.
         vault_index: Prebuilt VaultIndex with lookup maps.
         resolved_vault: Resolved absolute path of the vault root.
         resolved_note: Resolved absolute path of the source note.
         options: Resolve options including depth.
 
     Returns:
-        List of matched file paths (relative) discovered during traversal.
+        Tuple of matched file paths and outgoing link edges by originating note.
     """
     visited: set[Path] = set()
     matched_files: list[Path] = []
+    edges: dict[str, list[LinkEdge]] = {}
 
     queue: deque[tuple[Path, int]] = deque()
-    queue.append((note_path, 1))
+    queue.append((resolved_note, 1))
     visited.add(resolved_note)
 
     while queue:
@@ -134,12 +144,38 @@ def _traverse_links(
         content = current_note_path.read_text(encoding="utf-8")
         links = extract_links(content)
         file_links = [link for link in links if link.is_file]
+        source_note = _path_for_response(current_note_path, resolved_vault)
+        outgoing_links: list[LinkEdge] = []
 
         for link in file_links:
+            serialized_link = ExtractedLink.from_obsilink_link(
+                link_type=link.type.value,
+                target=link.target,
+                alias=link.alias,
+                heading=link.heading,
+                blockid=link.blockid,
+            )
             matched = _resolve_link_to_file(link.as_path, vault_index)
             if matched is None:
+                outgoing_links.append(
+                    LinkEdge(
+                        link=serialized_link,
+                        resolved=False,
+                        target_note=None,
+                        unresolved_reason="not_found",
+                    )
+                )
                 continue
+
             resolved_child = (resolved_vault / matched).resolve()
+            outgoing_links.append(
+                LinkEdge(
+                    link=serialized_link,
+                    resolved=True,
+                    target_note=_path_for_response(resolved_child, resolved_vault),
+                )
+            )
+
             if resolved_child not in visited:
                 matched_files.append(matched)
                 visited.add(resolved_child)
@@ -147,7 +183,10 @@ def _traverse_links(
                 if current_depth < options.depth:
                     queue.append((resolved_child, current_depth + 1))
 
-    return matched_files
+        if outgoing_links:
+            edges[source_note] = outgoing_links
+
+    return matched_files, edges
 
 
 def resolve_links(
@@ -208,11 +247,11 @@ def resolve_links(
             options=resolved_options,
             metadata=metadata,
             files=resolved_files,
-            matched_links=[],
+            edges={},
         )
 
-    matched_files = _traverse_links(
-        note_path, vault_index, resolved_vault, resolved_note, resolved_options
+    matched_files, edges = _traverse_links(
+        vault_index, resolved_vault, resolved_note, resolved_options
     )
 
     matched_paths = {str(path) for path in matched_files}
@@ -244,5 +283,5 @@ def resolve_links(
         options=resolved_options,
         metadata=metadata,
         files=resolved_files,
-        matched_links=[str(p) for p in matched_files],
+        edges=edges,
     )
