@@ -72,7 +72,7 @@ def _build_reverse_index(
     return reverse
 
 
-def resolve_links(
+def build_note_graph(
     note_path: Path,
     vault_graph: VaultGraph,
     vault_index: VaultIndex,
@@ -82,7 +82,7 @@ def resolve_links(
     """Resolve links in a note and return the source note path and scoped link graph."""
     start = time.monotonic()
     resolved_options = options or ResolveOptions()
-    logger.debug("resolve_links.start", note=str(note_path), depth=resolved_options.depth)
+    logger.debug("build_note_graph.start", note=str(note_path), depth=resolved_options.depth)
 
     resolved_note = note_path.resolve()
     resolved_vault = Path(vault_graph.vault_root).resolve()
@@ -236,7 +236,7 @@ def resolve_links(
 
     duration = time.monotonic() - start
     logger.debug(
-        "resolve_links.complete",
+        "build_note_graph.complete",
         duration=round(duration, 4),
         files=graph.metadata.total_files,
         edges=len(graph.edges),

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from link_tracer import build_graph, scan_vault
+from link_tracer import build_vault_graph, scan_vault
 from link_tracer.models import VaultIndex
-from link_tracer.graph import _resolve_link_to_file
+from link_tracer.vault_graph import _resolve_link_to_file
 from tests.fixtures import FakeFileEntry
 
 
@@ -28,7 +28,7 @@ def _make_vault_index(
     )
 
 
-def test_resolve_link_returns_first_match_for_duplicate_names() -> None:
+def test_build_vault_graph_returns_first_match_for_duplicate_names() -> None:
     """Unqualified links resolve to the first matching file when duplicates exist."""
     files = [
         FakeFileEntry(file_path="docs/about.md"),
@@ -41,7 +41,7 @@ def test_resolve_link_returns_first_match_for_duplicate_names() -> None:
     assert matched == Path("docs/about.md")
 
 
-def test_resolve_link_with_extension_returns_first_duplicate_match() -> None:
+def test_build_vault_graph_with_extension_returns_first_duplicate_match() -> None:
     """Unqualified links with extension resolve to the first duplicate match."""
     files = [
         FakeFileEntry(file_path="docs/about.md"),
@@ -54,7 +54,7 @@ def test_resolve_link_with_extension_returns_first_duplicate_match() -> None:
     assert matched == Path("docs/about.md")
 
 
-def test_resolve_link_uses_path_component_to_disambiguate() -> None:
+def test_build_vault_graph_uses_path_component_to_disambiguate() -> None:
     """Path-qualified links resolve the matching duplicate file."""
     files = [
         FakeFileEntry(file_path="docs/about.md"),
@@ -76,7 +76,7 @@ def test_resolve_vault_links_resolves_edges_for_every_file(tmp_path: Path) -> No
     (vault_root / "tasks.md").write_text("---\ntitle: Tasks\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    response = build_graph(vault_index)
+    response = build_vault_graph(vault_index)
 
     assert response.vault_root == str(vault_root)
     assert response.metadata.total_files == 3

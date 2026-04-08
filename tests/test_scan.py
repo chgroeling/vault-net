@@ -10,7 +10,7 @@ from link_tracer.models import VaultIndex
 from tests.fixtures import FakeAggregatedResult, FakeFileEntry, FakeScanMetadata
 
 
-def test_build_vault_graph_constructs_from_scan_result() -> None:
+def test_build_vault_index_constructs_from_scan_result() -> None:
     """build_index() creates VaultIndex with lookup maps from scan result."""
     vault_root = Path("/tmp/vault")  # noqa: S108
     files = [

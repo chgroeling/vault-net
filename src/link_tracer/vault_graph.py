@@ -133,10 +133,10 @@ def _resolve_extracted_link(
     )
 
 
-def build_graph(vault_index: VaultIndex) -> VaultGraph:
+def build_vault_graph(vault_index: VaultIndex) -> VaultGraph:
     """Resolve all file links for every scanned note in a vault."""
     start = time.monotonic()
-    logger.debug("build_graph.start", total_files=len(vault_index.files))
+    logger.debug("build_vault_graph.start", total_files=len(vault_index.files))
 
     resolved_vault = vault_index.vault_root.resolve()
     edges: dict[str, list[LinkEdge]] = {}
@@ -169,7 +169,7 @@ def build_graph(vault_index: VaultIndex) -> VaultGraph:
 
     duration = time.monotonic() - start
     logger.debug(
-        "build_graph.complete",
+        "build_vault_graph.complete",
         duration=round(duration, 4),
         files=response.metadata.total_files,
         edges=len(response.edges),
