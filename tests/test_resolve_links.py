@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from link_tracer import build_index, resolve_links, resolve_vault_links, scan_vault
+from link_tracer import build_index, resolve_links, build_graph, scan_vault
 from link_tracer.models import ResolveOptions, VaultIndex
 from tests.fixtures import FakeAggregatedResult, FakeFileEntry, FakeScanMetadata
 
@@ -26,7 +26,7 @@ def test_resolve_links_uses_prebuilt_index() -> None:
     )
     vault_index = build_index(vault_root, scan_result)
     with patch.object(Path, "read_text", return_value="[[about]]"):
-        vault_graph = resolve_vault_links(vault_index)
+        vault_graph = build_graph(vault_index)
 
     with patch.object(Path, "read_text", return_value="[[about]]"):
         _, graph = resolve_links(note_path, vault_graph, vault_index)
@@ -51,7 +51,7 @@ def test_resolve_links_multiple_calls_reuse_same_index() -> None:
     )
     vault_index = build_index(vault_root, scan_result)
     with patch.object(Path, "read_text", return_value="[[about]]"):
-        vault_graph = resolve_vault_links(vault_index)
+        vault_graph = build_graph(vault_index)
 
     with (
         patch("link_tracer.scan.scan_directory") as mock_scan,
@@ -84,7 +84,7 @@ def test_resolve_links_depth_zero_returns_source_only(tmp_path: Path) -> None:
     (vault_root / "contact.md").write_text("---\ntitle: Contact\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     _, graph = resolve_links(
         vault_root / "home.md", vault_response, vault_index, options=ResolveOptions(depth=0)
     )
@@ -102,7 +102,7 @@ def test_resolve_links_depth_one_returns_direct_links(tmp_path: Path) -> None:
     (vault_root / "contact.md").write_text("---\ntitle: Contact\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     _, graph = resolve_links(
         vault_root / "home.md", vault_response, vault_index, options=ResolveOptions(depth=1)
     )
@@ -120,7 +120,7 @@ def test_resolve_links_uses_indexed_links_without_file_reads(tmp_path: Path) -> 
     (vault_root / "about.md").write_text("---\ntitle: About\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
 
     with patch.object(Path, "read_text", side_effect=AssertionError("unexpected file read")):
         _, graph = resolve_links(
@@ -143,7 +143,7 @@ def test_resolve_links_depth_two_returns_children_links(tmp_path: Path) -> None:
     (vault_root / "archive.md").write_text("---\ntitle: Archive\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     _, graph = resolve_links(
         vault_root / "home.md", vault_response, vault_index, options=ResolveOptions(depth=2)
     )
@@ -165,7 +165,7 @@ def test_resolve_links_depth_three_returns_grandchildren_links(tmp_path: Path) -
     (vault_root / "e.md").write_text("---\ntitle: E\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     _, graph = resolve_links(vault_root / "a.md", vault_response, vault_index, options=ResolveOptions(depth=3))
 
     assert graph.metadata.total_files == 4
@@ -180,7 +180,7 @@ def test_resolve_links_circular_links_no_infinite_loop(tmp_path: Path) -> None:
     (vault_root / "b.md").write_text("---\ntitle: B\n---\n[[a]]", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     _, graph = resolve_links(vault_root / "a.md", vault_response, vault_index, options=ResolveOptions(depth=5))
 
     assert graph.metadata.total_files == 2
@@ -199,7 +199,7 @@ def test_resolve_links_includes_unresolved_edges(tmp_path: Path) -> None:
     (vault_root / "about.md").write_text("---\ntitle: About\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     _, graph = resolve_links(
         vault_root / "home.md", vault_response, vault_index, options=ResolveOptions(depth=1)
     )
@@ -226,7 +226,7 @@ def test_resolve_links_external_note_outside_vault_uses_fallback_parsing(tmp_pat
     external_note.write_text("[[about]] and [[missing-note]]", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     source_note, graph = resolve_links(external_note, vault_response, vault_index, options=ResolveOptions(depth=1))
 
     source_key = str(external_note.resolve())
@@ -252,7 +252,7 @@ def test_backlinks_depth_one_shows_incoming_edges(tmp_path: Path) -> None:
     (vault_root / "b.md").write_text("---\ntitle: B\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     _, graph = resolve_links(vault_root / "b.md", vault_response, vault_index, options=ResolveOptions(depth=1))
 
     # b.md has no forward edges, but a.md links to b.md → backlink
@@ -273,7 +273,7 @@ def test_backlinks_depth_two_bidirectional(tmp_path: Path) -> None:
     (vault_root / "d.md").write_text("---\ntitle: D\n---\n[[a]]", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     _, graph = resolve_links(vault_root / "b.md", vault_response, vault_index, options=ResolveOptions(depth=2))
 
     # depth=1 from b: forward→c, backlink a→b
@@ -297,7 +297,7 @@ def test_backlink_no_duplicate_when_forward_visited(tmp_path: Path) -> None:
     (vault_root / "b.md").write_text("---\ntitle: B\n---\n[[a]]", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     _, graph = resolve_links(vault_root / "a.md", vault_response, vault_index, options=ResolveOptions(depth=2))
 
     # a.md should have exactly one edge a→b (no duplicate from backlink discovery)
@@ -318,7 +318,7 @@ def test_no_backlinks_for_isolated_note(tmp_path: Path) -> None:
     (vault_root / "c.md").write_text("---\ntitle: C\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     # Resolve a.md — nobody links to a.md, so no backlinks
     _, graph = resolve_links(vault_root / "a.md", vault_response, vault_index, options=ResolveOptions(depth=1))
 
@@ -334,7 +334,7 @@ def test_backlink_circular_links_no_infinite_loop(tmp_path: Path) -> None:
     (vault_root / "b.md").write_text("---\ntitle: B\n---\n[[a]]", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     _, graph = resolve_links(vault_root / "a.md", vault_response, vault_index, options=ResolveOptions(depth=5))
 
     assert graph.metadata.total_files == 2
@@ -350,7 +350,7 @@ def test_backlinks_depth_zero_no_edges(tmp_path: Path) -> None:
     (vault_root / "b.md").write_text("---\ntitle: B\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    vault_response = resolve_vault_links(vault_index)
+    vault_response = build_graph(vault_index)
     _, graph = resolve_links(vault_root / "b.md", vault_response, vault_index, options=ResolveOptions(depth=0))
 
     assert graph.edges == {}

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from link_tracer import resolve_vault_links, scan_vault
+from link_tracer import build_graph, scan_vault
 from link_tracer.models import VaultIndex
-from link_tracer.resolve_vault_links import _resolve_link_to_file
+from link_tracer.graph import _resolve_link_to_file
 from tests.fixtures import FakeFileEntry
 
 
@@ -76,7 +76,7 @@ def test_resolve_vault_links_resolves_edges_for_every_file(tmp_path: Path) -> No
     (vault_root / "tasks.md").write_text("---\ntitle: Tasks\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    response = resolve_vault_links(vault_index)
+    response = build_graph(vault_index)
 
     assert response.vault_root == str(vault_root)
     assert response.metadata.total_files == 3

@@ -16,7 +16,6 @@ logger = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
     from pathlib import Path
-
     from matterify.models import AggregatedResult
 
 def _extract_file_links_callback(content: str) -> dict[str, object]:

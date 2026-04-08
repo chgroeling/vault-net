@@ -25,7 +25,6 @@ def _entry_has_file_links_payload(entry: object) -> bool:
     custom_data = getattr(entry, "custom_data", None)
     return isinstance(custom_data, dict) and isinstance(custom_data.get(_FILE_LINKS_KEY), list)
 
-
 def _entry_file_links(entry: object) -> list[ExtractedLink]:
     """Read serialized file links from a scan entry custom_data payload."""
     custom_data = getattr(entry, "custom_data", None)
@@ -134,10 +133,10 @@ def _resolve_extracted_link(
     )
 
 
-def resolve_vault_links(vault_index: VaultIndex) -> VaultGraph:
+def build_graph(vault_index: VaultIndex) -> VaultGraph:
     """Resolve all file links for every scanned note in a vault."""
     start = time.monotonic()
-    logger.debug("resolve_vault_links.start", total_files=len(vault_index.files))
+    logger.debug("build_graph.start", total_files=len(vault_index.files))
 
     resolved_vault = vault_index.vault_root.resolve()
     edges: dict[str, list[LinkEdge]] = {}
@@ -170,7 +169,7 @@ def resolve_vault_links(vault_index: VaultIndex) -> VaultGraph:
 
     duration = time.monotonic() - start
     logger.debug(
-        "resolve_vault_links.complete",
+        "build_graph.complete",
         duration=round(duration, 4),
         files=response.metadata.total_files,
         edges=len(response.edges),
