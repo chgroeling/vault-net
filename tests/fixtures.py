@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
 
 SAMPLE_NOTES: dict[str, str] = {
@@ -166,3 +167,37 @@ def create_test_vault(tmp_path: Path) -> dict[str, Path]:
         note_path.write_text(content, encoding="utf-8")
         paths[name] = note_path
     return paths
+
+
+# ---------------------------------------------------------------------------
+# Fake matterify dataclasses for unit tests
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class FakeFileStats:
+    file_size: int = 100
+    modified_time: float = 1700000000.0
+    access_time: float = 1700000000.0
+
+
+@dataclass
+class FakeFileEntry:
+    file_path: str = "note.md"
+    frontmatter: dict = field(default_factory=dict)
+    status: str = "ok"
+    error: str | None = None
+    stats: FakeFileStats | None = field(default_factory=FakeFileStats)
+    file_hash: str | None = None
+
+
+@dataclass
+class FakeScanMetadata:
+    source_directory: Path = field(default_factory=lambda: Path("/tmp/vault"))  # noqa: S108
+
+
+@dataclass
+class FakeAggregatedResult:
+    metadata: FakeScanMetadata = field(default_factory=FakeScanMetadata)
+    files: list[FakeFileEntry] = field(default_factory=list)
+
