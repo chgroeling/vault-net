@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from link_tracer.utils import _normalize_lookup_key
 
@@ -53,28 +53,6 @@ class LinkEdge:
 
 
 @dataclass(frozen=True, slots=True)
-class ResolvedFile:
-    """Represents a file discovered during link resolution."""
-
-    file_path: str
-    frontmatter: dict[str, Any]
-    status: str
-    error: str | None
-    file_hash: str | None
-
-    @classmethod
-    def from_file_entry(cls, entry: FileEntry) -> ResolvedFile:  # type: ignore[no-any-unimported]
-        """Create a ResolvedFile from a matterify FileEntry."""
-        return cls(
-            file_path=str(entry.file_path),
-            frontmatter=entry.frontmatter,
-            status=entry.status,
-            error=entry.error,
-            file_hash=entry.file_hash,
-        )
-
-
-@dataclass(frozen=True, slots=True)
 class ResolveMetadata:
     """Metadata summary for a resolution result."""
 
@@ -83,19 +61,6 @@ class ResolveMetadata:
     files_with_frontmatter: int
     files_without_frontmatter: int
     errors: int
-
-    @classmethod
-    def from_files(cls, source_directory: str, files: list[ResolvedFile]) -> ResolveMetadata:
-        """Build ResolveMetadata from a list of resolved files."""
-        total = len(files)
-        with_fm = sum(1 for f in files if f.frontmatter)
-        return cls(
-            source_directory=source_directory,
-            total_files=total,
-            files_with_frontmatter=with_fm,
-            files_without_frontmatter=total - with_fm,
-            errors=sum(1 for f in files if f.status != "ok"),
-        )
 
 
 @dataclass(frozen=True, slots=True)

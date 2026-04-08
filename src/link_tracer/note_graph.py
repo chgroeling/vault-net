@@ -11,7 +11,6 @@ import structlog
 from link_tracer.consts import _POSSIBLE_EXTENSIONS
 from link_tracer.models import (
     LinkEdge,
-    ResolvedFile,
     ResolveMetadata,
     VaultGraph,
     VaultIndex,
@@ -92,8 +91,8 @@ def build_note_graph(
     stem_to_file = vault_index.stem_to_file
     relative_path_to_file = vault_index.relative_path_to_file
 
-    files_by_key: dict[str, ResolvedFile] = {
-        _normalize_lookup_key(Path(str(fe.file_path))): ResolvedFile.from_file_entry(fe)
+    files_by_key = {
+        _normalize_lookup_key(Path(str(fe.file_path))): fe
         for fe in vault_index.files
     }
 
@@ -101,21 +100,22 @@ def build_note_graph(
 
     if depth == 0:
         if source_entry is None:
-            resolved_files = [
-                ResolvedFile(
-                    file_path=str(resolved_note),
-                    frontmatter={},
-                    status="ok",
-                    error=None,
-                    file_hash=None,
-                ),
-            ]
+            metadata = ResolveMetadata(
+                source_directory=vault_graph.metadata.source_directory,
+                total_files=1,
+                files_with_frontmatter=0,
+                files_without_frontmatter=1,
+                errors=0,
+            )
         else:
-            resolved_files = [source_entry]
-
-        metadata = ResolveMetadata.from_files(
-            vault_graph.metadata.source_directory, resolved_files
-        )
+            with_fm = 1 if source_entry.frontmatter else 0
+            metadata = ResolveMetadata(
+                source_directory=vault_graph.metadata.source_directory,
+                total_files=1,
+                files_with_frontmatter=with_fm,
+                files_without_frontmatter=1 - with_fm,
+                errors=0 if source_entry.status == "ok" else 1,
+            )
         graph = VaultGraph(
             vault_root=vault_graph.vault_root,
             metadata=metadata,
@@ -208,22 +208,16 @@ def build_note_graph(
         if source_entry and source_entry not in filtered_files:
             filtered_files = [source_entry, *filtered_files]
 
-        resolved_files = filtered_files
-
-        if source_entry is None:
-            resolved_files = [
-                ResolvedFile(
-                    file_path=str(resolved_note),
-                    frontmatter={},
-                    status="ok",
-                    error=None,
-                    file_hash=None,
-                ),
-                *resolved_files,
-            ]
-
-        metadata = ResolveMetadata.from_files(
-            vault_graph.metadata.source_directory, resolved_files
+        extra = 0 if source_entry else 1
+        total = len(filtered_files) + extra
+        with_fm = sum(1 for f in filtered_files if f.frontmatter)
+        errors = sum(1 for f in filtered_files if f.status != "ok")
+        metadata = ResolveMetadata(
+            source_directory=vault_graph.metadata.source_directory,
+            total_files=total,
+            files_with_frontmatter=with_fm,
+            files_without_frontmatter=total - with_fm,
+            errors=errors,
         )
 
         graph = VaultGraph(
