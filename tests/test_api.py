@@ -10,7 +10,7 @@ import pytest
 
 from link_tracer.api import (
     _resolve_link_to_file,
-    build_vault_graph,
+    build_index,
     resolve_links,
     resolve_vault_links,
     scan_vault,
@@ -115,7 +115,7 @@ def test_build_vault_graph_constructs_from_scan_result() -> None:
         files=files,
     )
 
-    vault_index = build_vault_graph(vault_root, scan_result)
+    vault_index = build_index(vault_root, scan_result)
 
     assert vault_index.vault_root == vault_root
     assert vault_index.source_directory == str(vault_root)
@@ -158,7 +158,7 @@ def test_resolve_links_uses_prebuilt_index() -> None:
         metadata=_FakeScanMetadata(source_directory=vault_root),
         files=files,
     )
-    vault_index = build_vault_graph(vault_root, scan_result)
+    vault_index = build_index(vault_root, scan_result)
     with patch.object(Path, "read_text", return_value="[[about]]"):
         vault_graph = resolve_vault_links(vault_index)
 
@@ -183,7 +183,7 @@ def test_resolve_links_multiple_calls_reuse_same_index() -> None:
         metadata=_FakeScanMetadata(source_directory=vault_root),
         files=files,
     )
-    vault_index = build_vault_graph(vault_root, scan_result)
+    vault_index = build_index(vault_root, scan_result)
     with patch.object(Path, "read_text", return_value="[[about]]"):
         vault_graph = resolve_vault_links(vault_index)
 

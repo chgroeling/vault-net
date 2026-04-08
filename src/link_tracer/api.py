@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from matterify.models import AggregatedResult
 
 
-def build_vault_graph(  # type: ignore[no-any-unimported]
+def build_index(  # type: ignore[no-any-unimported]
     vault_root: Path,
     scan_result: AggregatedResult,
 ) -> VaultIndex:
@@ -64,7 +64,7 @@ def scan_vault(vault_root: Path) -> VaultIndex:
     logger.debug("scan_vault.start", vault_root=str(vault_root))
 
     scan_result = scan_directory(vault_root, callback=_extract_file_links_callback)
-    index = build_vault_graph(vault_root, scan_result)
+    index = build_index(vault_root, scan_result)
 
     duration = time.monotonic() - start
     logger.debug(
@@ -77,7 +77,7 @@ def scan_vault(vault_root: Path) -> VaultIndex:
 
 __all__ = [
     "VaultGraph",
-    "build_vault_graph",
+    "build_index",
     "resolve_links",
     "resolve_vault_links",
     "scan_vault",
