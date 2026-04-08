@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
 
-from link_tracer.api import build_vault_index, resolve_links, resolve_vault_links, scan_vault
+from link_tracer.api import build_vault_graph, resolve_links, resolve_vault_links, scan_vault
 from link_tracer.models import ResolveOptions, VaultGraph, VaultIndex
 
 try:
@@ -17,7 +17,7 @@ __all__ = [
     "VaultGraph",
     "VaultIndex",
     "__version__",
-    "build_vault_index",
+    "build_vault_graph",
     "resolve_links",
     "resolve_vault_links",
     "scan_vault",

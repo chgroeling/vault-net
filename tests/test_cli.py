@@ -360,7 +360,7 @@ def test_vault_command_outputs_edges_for_multiple_notes(tmp_path: Path) -> None:
     vault = tmp_path / "sample_vault"
 
     runner = CliRunner()
-    result = runner.invoke(main, ["vault", "--vault-root", str(vault)])
+    result = runner.invoke(main, ["graph", "--vault-root", str(vault)])
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
@@ -373,7 +373,7 @@ def test_vault_command_outputs_edges_for_multiple_notes(tmp_path: Path) -> None:
 def test_vault_command_requires_vault_root() -> None:
     """Vault subcommand errors when no vault root can be resolved."""
     runner = CliRunner()
-    result = runner.invoke(main, ["vault"], env={})
+    result = runner.invoke(main, ["graph"], env={})
 
     assert result.exit_code != 0
     assert "No vault root directory provided" in result.output
@@ -406,7 +406,7 @@ def test_vault_command_output_writes_json_file(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["vault", "--vault-root", str(vault), "-o", str(output)],
+        ["graph", "--vault-root", str(vault), "-o", str(output)],
     )
 
     assert result.exit_code == 0

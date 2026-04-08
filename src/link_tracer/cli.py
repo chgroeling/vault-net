@@ -125,7 +125,7 @@ def trace_note(
     return 0
 
 
-@main.command("vault")
+@main.command("graph")
 @click.option(
     "--vault-root",
     type=click.Path(path_type=Path),
@@ -141,7 +141,7 @@ def trace_note(
 )
 @click.option("--debug", is_flag=True, help="Enable debug-level structured logging to stderr")
 @click.option("--verbose", is_flag=True, help="Enable verbose console output")
-def trace_vault(vault_root: Path | None, output: Path | None, debug: bool, verbose: bool) -> int:
+def trace_graph(vault_root: Path | None, output: Path | None, debug: bool, verbose: bool) -> int:
     """Trace links for every note in the vault."""
     configure_debug_logging(debug)
     console = get_console(verbose)
