@@ -15,7 +15,7 @@ from link_tracer.api import (
     resolve_vault_links,
     scan_vault,
 )
-from link_tracer.models import ResolveOptions, VaultIndex, _build_vault_lookups
+from link_tracer.models import ResolveOptions, VaultIndex
 
 
 @dataclass
@@ -53,7 +53,7 @@ def _make_vault_index(
 ) -> VaultIndex:
     """Construct a minimal VaultIndex for testing."""
     vault_files = [Path(f.file_path) for f in files] if files else []
-    name_to_file, stem_to_file, relative_path_to_file = _build_vault_lookups(vault_files)
+    name_to_file, stem_to_file, relative_path_to_file = VaultIndex._build_vault_lookups(vault_files)
     return VaultIndex(
         vault_root=vault_root,
         files=files or [],
@@ -147,7 +147,7 @@ def test_scan_vault_delegates_to_scan_directory() -> None:
 
 
 def test_resolve_links_uses_prebuilt_index() -> None:
-    """resolve_links() works with a prebuilt VaultIndex without scanning."""
+    """resolve_links() works with a prebuilt ResolveVaultResponse."""
     vault_root = Path("/tmp/vault")  # noqa: S108
     note_path = vault_root / "home.md"
     files = [
@@ -159,9 +159,11 @@ def test_resolve_links_uses_prebuilt_index() -> None:
         files=files,
     )
     vault_index = build_vault_index(vault_root, scan_result)
+    with patch.object(Path, "read_text", return_value="[[about]]"):
+        vault_response = resolve_vault_links(vault_index)
 
     with patch.object(Path, "read_text", return_value="[[about]]"):
-        response = resolve_links(note_path, vault_index)
+        response = resolve_links(note_path, vault_response)
 
     assert response.vault_root == str(vault_root)
     assert set(response.edges) == {"home.md"}
@@ -170,7 +172,7 @@ def test_resolve_links_uses_prebuilt_index() -> None:
 
 
 def test_resolve_links_multiple_calls_reuse_same_index() -> None:
-    """Multiple resolve_links() calls with same index do not trigger rescanning."""
+    """Multiple resolve_links() calls with same vault response do not rescan."""
     vault_root = Path("/tmp/vault")  # noqa: S108
     files = [
         _FakeFileEntry(file_path="home.md", frontmatter={"title": "Home"}),
@@ -182,13 +184,15 @@ def test_resolve_links_multiple_calls_reuse_same_index() -> None:
         files=files,
     )
     vault_index = build_vault_index(vault_root, scan_result)
+    with patch.object(Path, "read_text", return_value="[[about]]"):
+        vault_response = resolve_vault_links(vault_index)
 
     with (
         patch("link_tracer.api.scan_directory") as mock_scan,
         patch.object(Path, "read_text", return_value="[[about]]"),
     ):
-        resolve_links(vault_root / "home.md", vault_index)
-        resolve_links(vault_root / "about.md", vault_index)
+        resolve_links(vault_root / "home.md", vault_response)
+        resolve_links(vault_root / "about.md", vault_response)
 
     mock_scan.assert_not_called()
 
@@ -208,7 +212,10 @@ def test_resolve_links_depth_zero_returns_source_only(tmp_path: Path) -> None:
     (vault_root / "contact.md").write_text("---\ntitle: Contact\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    response = resolve_links(vault_root / "home.md", vault_index, options=ResolveOptions(depth=0))
+    vault_response = resolve_vault_links(vault_index)
+    response = resolve_links(
+        vault_root / "home.md", vault_response, options=ResolveOptions(depth=0)
+    )
 
     assert len(response.files) == 1
     assert "home.md" in response.files[0].file_path
@@ -224,9 +231,31 @@ def test_resolve_links_depth_one_returns_direct_links(tmp_path: Path) -> None:
     (vault_root / "contact.md").write_text("---\ntitle: Contact\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    response = resolve_links(vault_root / "home.md", vault_index, options=ResolveOptions(depth=1))
+    vault_response = resolve_vault_links(vault_index)
+    response = resolve_links(
+        vault_root / "home.md", vault_response, options=ResolveOptions(depth=1)
+    )
 
     assert len(response.files) == 2
+    assert set(response.edges) == {"home.md"}
+    assert [edge.target_note for edge in response.edges["home.md"]] == ["about.md"]
+
+
+def test_resolve_links_uses_indexed_links_without_file_reads(tmp_path: Path) -> None:
+    """resolve_links() uses indexed link payloads when available."""
+    vault_root = tmp_path / "vault"
+    vault_root.mkdir()
+    (vault_root / "home.md").write_text("---\ntitle: Home\n---\n[[about]]", encoding="utf-8")
+    (vault_root / "about.md").write_text("---\ntitle: About\n---\nNo links", encoding="utf-8")
+
+    vault_index = scan_vault(vault_root)
+    vault_response = resolve_vault_links(vault_index)
+
+    with patch.object(Path, "read_text", side_effect=AssertionError("unexpected file read")):
+        response = resolve_links(
+            vault_root / "home.md", vault_response, options=ResolveOptions(depth=1)
+        )
+
     assert set(response.edges) == {"home.md"}
     assert [edge.target_note for edge in response.edges["home.md"]] == ["about.md"]
 
@@ -243,7 +272,10 @@ def test_resolve_links_depth_two_returns_children_links(tmp_path: Path) -> None:
     (vault_root / "archive.md").write_text("---\ntitle: Archive\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    response = resolve_links(vault_root / "home.md", vault_index, options=ResolveOptions(depth=2))
+    vault_response = resolve_vault_links(vault_index)
+    response = resolve_links(
+        vault_root / "home.md", vault_response, options=ResolveOptions(depth=2)
+    )
 
     assert len(response.files) == 3
     assert set(response.edges) == {"home.md", "about.md"}
@@ -262,7 +294,8 @@ def test_resolve_links_depth_three_returns_grandchildren_links(tmp_path: Path) -
     (vault_root / "e.md").write_text("---\ntitle: E\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    response = resolve_links(vault_root / "a.md", vault_index, options=ResolveOptions(depth=3))
+    vault_response = resolve_vault_links(vault_index)
+    response = resolve_links(vault_root / "a.md", vault_response, options=ResolveOptions(depth=3))
 
     assert len(response.files) == 4
     assert set(response.edges) == {"a.md", "b.md", "c.md"}
@@ -276,7 +309,8 @@ def test_resolve_links_circular_links_no_infinite_loop(tmp_path: Path) -> None:
     (vault_root / "b.md").write_text("---\ntitle: B\n---\n[[a]]", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    response = resolve_links(vault_root / "a.md", vault_index, options=ResolveOptions(depth=5))
+    vault_response = resolve_vault_links(vault_index)
+    response = resolve_links(vault_root / "a.md", vault_response, options=ResolveOptions(depth=5))
 
     assert len(response.files) == 2
     assert set(response.edges) == {"a.md", "b.md"}
@@ -294,7 +328,10 @@ def test_resolve_links_includes_unresolved_edges(tmp_path: Path) -> None:
     (vault_root / "about.md").write_text("---\ntitle: About\n---\nNo links", encoding="utf-8")
 
     vault_index = scan_vault(vault_root)
-    response = resolve_links(vault_root / "home.md", vault_index, options=ResolveOptions(depth=1))
+    vault_response = resolve_vault_links(vault_index)
+    response = resolve_links(
+        vault_root / "home.md", vault_response, options=ResolveOptions(depth=1)
+    )
 
     assert set(response.edges) == {"home.md"}
     assert response.edges["home.md"][0].resolved is True
@@ -304,6 +341,33 @@ def test_resolve_links_includes_unresolved_edges(tmp_path: Path) -> None:
     assert response.edges["home.md"][1].target_note is None
     assert response.edges["home.md"][1].unresolved_reason == "not_found"
     assert response.edges["home.md"][1].link.target == "missing-note"
+
+
+def test_resolve_links_external_note_outside_vault_uses_fallback_parsing(tmp_path: Path) -> None:
+    """External source note still resolves links via fallback parsing."""
+    vault_root = tmp_path / "vault"
+    vault_root.mkdir()
+    (vault_root / "about.md").write_text("---\ntitle: About\n---\nNo links", encoding="utf-8")
+
+    external_root = tmp_path / "external"
+    external_root.mkdir()
+    external_note = external_root / "outside.md"
+    external_note.write_text("[[about]] and [[missing-note]]", encoding="utf-8")
+
+    vault_index = scan_vault(vault_root)
+    vault_response = resolve_vault_links(vault_index)
+    response = resolve_links(external_note, vault_response, options=ResolveOptions(depth=1))
+
+    source_key = str(external_note.resolve())
+    assert response.source_note == source_key
+    assert set(response.edges) == {source_key}
+    assert response.edges[source_key][0].resolved is True
+    assert response.edges[source_key][0].target_note == "about.md"
+    assert response.edges[source_key][1].resolved is False
+    assert response.edges[source_key][1].target_note is None
+    assert response.edges[source_key][1].unresolved_reason == "not_found"
+    assert any(file.file_path == str(external_note.resolve()) for file in response.files)
+    assert any(file.file_path == "about.md" for file in response.files)
 
 
 def test_resolve_links_default_depth_is_one() -> None:

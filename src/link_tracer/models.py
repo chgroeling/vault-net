@@ -6,40 +6,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from link_tracer.utils import _normalize_lookup_key
+
 if TYPE_CHECKING:
     from matterify.models import AggregatedResult, FileEntry
-
-
-def _normalize_lookup_key(path: Path) -> str:
-    """Return a case-insensitive normalized lookup key for paths."""
-    return path.as_posix().lstrip("./").lower()
-
-
-def _build_vault_lookups(
-    vault_files: list[Path],
-) -> tuple[dict[str, Path], dict[str, Path], dict[str, Path]]:
-    """Build case-insensitive lookup maps for vault files.
-
-    Args:
-        vault_files: List of file paths from matterify scan.
-
-    Returns:
-        Tuple of `(name_to_file, stem_to_file, relative_path_to_file)` maps.
-    """
-    name_to_file: dict[str, Path] = {}
-    stem_to_file: dict[str, Path] = {}
-    relative_path_to_file: dict[str, Path] = {}
-
-    for file_path in vault_files:
-        name_key = file_path.name.lower()
-        stem_key = file_path.stem.lower()
-        relative_key = _normalize_lookup_key(file_path)
-
-        name_to_file.setdefault(name_key, file_path)
-        stem_to_file.setdefault(stem_key, file_path)
-        relative_path_to_file.setdefault(relative_key, file_path)
-
-    return name_to_file, stem_to_file, relative_path_to_file
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +159,26 @@ class VaultIndex:  # type: ignore[no-any-unimported]
     stem_to_file: dict[str, Path]
     relative_path_to_file: dict[str, Path]
 
+    @staticmethod
+    def _build_vault_lookups(
+        vault_files: list[Path],
+    ) -> tuple[dict[str, Path], dict[str, Path], dict[str, Path]]:
+        """Build case-insensitive lookup maps for vault files."""
+        name_to_file: dict[str, Path] = {}
+        stem_to_file: dict[str, Path] = {}
+        relative_path_to_file: dict[str, Path] = {}
+
+        for file_path in vault_files:
+            name_key = file_path.name.lower()
+            stem_key = file_path.stem.lower()
+            relative_key = _normalize_lookup_key(file_path)
+
+            name_to_file.setdefault(name_key, file_path)
+            stem_to_file.setdefault(stem_key, file_path)
+            relative_path_to_file.setdefault(relative_key, file_path)
+
+        return name_to_file, stem_to_file, relative_path_to_file
+
     @classmethod
     def from_scan_result(  # type: ignore[no-any-unimported]
         cls,
@@ -205,7 +195,7 @@ class VaultIndex:  # type: ignore[no-any-unimported]
             VaultIndex with prebuilt lookup maps.
         """
         vault_files = [Path(f.file_path) for f in scan_result.files]
-        name_to_file, stem_to_file, relative_path_to_file = _build_vault_lookups(vault_files)
+        name_to_file, stem_to_file, relative_path_to_file = cls._build_vault_lookups(vault_files)
 
         source_directory = getattr(scan_result.metadata, "source_directory", None)
         if source_directory is None:
