@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from link_tracer import build_note_graph, build_vault_graph, scan_vault
+from link_tracer import NoteGraph, build_note_graph, build_vault_graph, scan_vault
 
 
 def test_build_note_graph_uses_prebuilt_index(tmp_path: Path) -> None:
@@ -20,12 +20,13 @@ def test_build_note_graph_uses_prebuilt_index(tmp_path: Path) -> None:
 
     vault_index = scan_vault(vault_root)
     vault_graph = build_vault_graph(vault_index)
-    _, graph = build_note_graph(note_path, vault_graph, vault_index)
+    result = build_note_graph(note_path, vault_graph, vault_index)
 
-    assert graph.vault_root == str(vault_root)
-    assert set(graph.edges) == {"home.md"}
-    assert [edge.target_note for edge in graph.edges["home.md"]] == ["about.md"]
-    assert graph.edges["home.md"][0].resolved is True
+    assert isinstance(result, NoteGraph)
+    assert result.graph.vault_root == str(vault_root)
+    assert set(result.graph.edges) == {"home.md"}
+    assert [edge.target_note for edge in result.graph.edges["home.md"]] == ["about.md"]
+    assert result.graph.edges["home.md"][0].resolved is True
 
 
 def test_build_note_graph_multiple_calls_reuse_same_index(tmp_path: Path) -> None:
@@ -66,9 +67,9 @@ def test_build_note_graph_default_depth_is_one(tmp_path: Path) -> None:
     (vault_root / "c.md").write_text("", encoding="utf-8")
     vault_index = scan_vault(vault_root)
     vault_graph = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "a.md", vault_graph, vault_index)
-    assert set(graph.edges) == {"a.md"}
-    assert [e.target_note for e in graph.edges["a.md"]] == ["b.md"]
+    result = build_note_graph(vault_root / "a.md", vault_graph, vault_index)
+    assert set(result.graph.edges) == {"a.md"}
+    assert [e.target_note for e in result.graph.edges["a.md"]] == ["b.md"]
 
 
 def test_build_note_graph_depth_zero_returns_source_only(tmp_path: Path) -> None:
@@ -81,10 +82,10 @@ def test_build_note_graph_depth_zero_returns_source_only(tmp_path: Path) -> None
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "home.md", vault_response, vault_index, depth=0)
+    result = build_note_graph(vault_root / "home.md", vault_response, vault_index, depth=0)
 
-    assert graph.metadata.total_files == 1
-    assert graph.edges == {}
+    assert result.graph.metadata.total_files == 1
+    assert result.graph.edges == {}
 
 
 def test_build_note_graph_depth_one_returns_direct_links(tmp_path: Path) -> None:
@@ -97,11 +98,11 @@ def test_build_note_graph_depth_one_returns_direct_links(tmp_path: Path) -> None
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "home.md", vault_response, vault_index, depth=1)
+    result = build_note_graph(vault_root / "home.md", vault_response, vault_index, depth=1)
 
-    assert graph.metadata.total_files == 2
-    assert set(graph.edges) == {"home.md"}
-    assert [edge.target_note for edge in graph.edges["home.md"]] == ["about.md"]
+    assert result.graph.metadata.total_files == 2
+    assert set(result.graph.edges) == {"home.md"}
+    assert [edge.target_note for edge in result.graph.edges["home.md"]] == ["about.md"]
 
 
 def test_build_note_graph_uses_indexed_links_without_file_reads(tmp_path: Path) -> None:
@@ -115,10 +116,10 @@ def test_build_note_graph_uses_indexed_links_without_file_reads(tmp_path: Path) 
     vault_response = build_vault_graph(vault_index)
 
     with patch.object(Path, "read_text", side_effect=AssertionError("unexpected file read")):
-        _, graph = build_note_graph(vault_root / "home.md", vault_response, vault_index, depth=1)
+        result = build_note_graph(vault_root / "home.md", vault_response, vault_index, depth=1)
 
-    assert set(graph.edges) == {"home.md"}
-    assert [edge.target_note for edge in graph.edges["home.md"]] == ["about.md"]
+    assert set(result.graph.edges) == {"home.md"}
+    assert [edge.target_note for edge in result.graph.edges["home.md"]] == ["about.md"]
 
 
 def test_build_note_graph_depth_two_returns_children_links(tmp_path: Path) -> None:
@@ -134,12 +135,12 @@ def test_build_note_graph_depth_two_returns_children_links(tmp_path: Path) -> No
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "home.md", vault_response, vault_index, depth=2)
+    result = build_note_graph(vault_root / "home.md", vault_response, vault_index, depth=2)
 
-    assert graph.metadata.total_files == 3
-    assert set(graph.edges) == {"home.md", "about.md"}
-    assert [edge.target_note for edge in graph.edges["home.md"]] == ["about.md"]
-    assert [edge.target_note for edge in graph.edges["about.md"]] == ["contact.md"]
+    assert result.graph.metadata.total_files == 3
+    assert set(result.graph.edges) == {"home.md", "about.md"}
+    assert [edge.target_note for edge in result.graph.edges["home.md"]] == ["about.md"]
+    assert [edge.target_note for edge in result.graph.edges["about.md"]] == ["contact.md"]
 
 
 def test_build_note_graph_depth_three_returns_grandchildren_links(tmp_path: Path) -> None:
@@ -154,10 +155,10 @@ def test_build_note_graph_depth_three_returns_grandchildren_links(tmp_path: Path
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "a.md", vault_response, vault_index, depth=3)
+    result = build_note_graph(vault_root / "a.md", vault_response, vault_index, depth=3)
 
-    assert graph.metadata.total_files == 4
-    assert set(graph.edges) == {"a.md", "b.md", "c.md"}
+    assert result.graph.metadata.total_files == 4
+    assert set(result.graph.edges) == {"a.md", "b.md", "c.md"}
 
 
 def test_build_note_graph_circular_links_no_infinite_loop(tmp_path: Path) -> None:
@@ -169,12 +170,12 @@ def test_build_note_graph_circular_links_no_infinite_loop(tmp_path: Path) -> Non
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "a.md", vault_response, vault_index, depth=5)
+    result = build_note_graph(vault_root / "a.md", vault_response, vault_index, depth=5)
 
-    assert graph.metadata.total_files == 2
-    assert set(graph.edges) == {"a.md", "b.md"}
-    assert [edge.target_note for edge in graph.edges["a.md"]] == ["b.md"]
-    assert [edge.target_note for edge in graph.edges["b.md"]] == ["a.md"]
+    assert result.graph.metadata.total_files == 2
+    assert set(result.graph.edges) == {"a.md", "b.md"}
+    assert [edge.target_note for edge in result.graph.edges["a.md"]] == ["b.md"]
+    assert [edge.target_note for edge in result.graph.edges["b.md"]] == ["a.md"]
 
 
 def test_build_note_graph_includes_unresolved_edges(tmp_path: Path) -> None:
@@ -188,16 +189,16 @@ def test_build_note_graph_includes_unresolved_edges(tmp_path: Path) -> None:
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "home.md", vault_response, vault_index, depth=1)
+    result = build_note_graph(vault_root / "home.md", vault_response, vault_index, depth=1)
 
-    assert set(graph.edges) == {"home.md"}
-    assert graph.edges["home.md"][0].resolved is True
-    assert graph.edges["home.md"][0].target_note == "about.md"
-    assert graph.edges["home.md"][0].link.target == "about"
-    assert graph.edges["home.md"][1].resolved is False
-    assert graph.edges["home.md"][1].target_note is None
-    assert graph.edges["home.md"][1].unresolved_reason == "not_found"
-    assert graph.edges["home.md"][1].link.target == "missing-note"
+    assert set(result.graph.edges) == {"home.md"}
+    assert result.graph.edges["home.md"][0].resolved is True
+    assert result.graph.edges["home.md"][0].target_note == "about.md"
+    assert result.graph.edges["home.md"][0].link.target == "about"
+    assert result.graph.edges["home.md"][1].resolved is False
+    assert result.graph.edges["home.md"][1].target_note is None
+    assert result.graph.edges["home.md"][1].unresolved_reason == "not_found"
+    assert result.graph.edges["home.md"][1].link.target == "missing-note"
 
 
 def test_build_note_graph_external_note_outside_vault_uses_fallback_parsing(tmp_path: Path) -> None:
@@ -213,16 +214,16 @@ def test_build_note_graph_external_note_outside_vault_uses_fallback_parsing(tmp_
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    source_note, graph = build_note_graph(external_note, vault_response, vault_index, depth=1)
+    result = build_note_graph(external_note, vault_response, vault_index, depth=1)
 
     source_key = str(external_note.resolve())
-    assert source_note == source_key
-    assert set(graph.edges) == {source_key}
-    assert graph.edges[source_key][0].resolved is True
-    assert graph.edges[source_key][0].target_note == "about.md"
-    assert graph.edges[source_key][1].resolved is False
-    assert graph.edges[source_key][1].target_note is None
-    assert graph.edges[source_key][1].unresolved_reason == "not_found"
+    assert result.source_note == source_key
+    assert set(result.graph.edges) == {source_key}
+    assert result.graph.edges[source_key][0].resolved is True
+    assert result.graph.edges[source_key][0].target_note == "about.md"
+    assert result.graph.edges[source_key][1].resolved is False
+    assert result.graph.edges[source_key][1].target_note is None
+    assert result.graph.edges[source_key][1].unresolved_reason == "not_found"
 
 
 # ---------------------------------------------------------------------------
@@ -239,11 +240,11 @@ def test_backlinks_depth_one_shows_incoming_edges(tmp_path: Path) -> None:
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "b.md", vault_response, vault_index, depth=1)
+    result = build_note_graph(vault_root / "b.md", vault_response, vault_index, depth=1)
 
     # b.md has no forward edges, but a.md links to b.md → backlink
-    assert "a.md" in graph.edges
-    backlink_edges = graph.edges["a.md"]
+    assert "a.md" in result.graph.edges
+    backlink_edges = result.graph.edges["a.md"]
     assert len(backlink_edges) == 1
     assert backlink_edges[0].target_note == "b.md"
     assert backlink_edges[0].resolved is True
@@ -260,18 +261,18 @@ def test_backlinks_depth_two_bidirectional(tmp_path: Path) -> None:
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "b.md", vault_response, vault_index, depth=2)
+    result = build_note_graph(vault_root / "b.md", vault_response, vault_index, depth=2)
 
     # depth=1 from b: forward→c, backlink a→b
     # depth=2 from c: no forward, no backlinks besides b→c (already visited)
     # depth=2 from a: forward a→b (already visited), backlink d→a
-    assert "b.md" in graph.edges  # forward b→c
-    assert "a.md" in graph.edges  # a→b (backlink at depth=1, forward at depth=2)
-    assert "d.md" in graph.edges  # d→a (backlink at depth=2)
+    assert "b.md" in result.graph.edges  # forward b→c
+    assert "a.md" in result.graph.edges  # a→b (backlink at depth=1, forward at depth=2)
+    assert "d.md" in result.graph.edges  # d→a (backlink at depth=2)
 
-    assert any(e.target_note == "c.md" for e in graph.edges["b.md"])
-    assert any(e.target_note == "b.md" for e in graph.edges["a.md"])
-    assert any(e.target_note == "a.md" for e in graph.edges["d.md"])
+    assert any(e.target_note == "c.md" for e in result.graph.edges["b.md"])
+    assert any(e.target_note == "b.md" for e in result.graph.edges["a.md"])
+    assert any(e.target_note == "a.md" for e in result.graph.edges["d.md"])
 
 
 def test_backlink_no_duplicate_when_forward_visited(tmp_path: Path) -> None:
@@ -284,15 +285,15 @@ def test_backlink_no_duplicate_when_forward_visited(tmp_path: Path) -> None:
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "a.md", vault_response, vault_index, depth=2)
+    result = build_note_graph(vault_root / "a.md", vault_response, vault_index, depth=2)
 
     # a.md should have exactly one edge a→b (no duplicate from backlink discovery)
-    assert len(graph.edges.get("a.md", [])) == 1
-    assert graph.edges["a.md"][0].target_note == "b.md"
+    assert len(result.graph.edges.get("a.md", [])) == 1
+    assert result.graph.edges["a.md"][0].target_note == "b.md"
 
     # b.md should have exactly one edge b→a
-    assert len(graph.edges.get("b.md", [])) == 1
-    assert graph.edges["b.md"][0].target_note == "a.md"
+    assert len(result.graph.edges.get("b.md", [])) == 1
+    assert result.graph.edges["b.md"][0].target_note == "a.md"
 
 
 def test_no_backlinks_for_isolated_note(tmp_path: Path) -> None:
@@ -306,10 +307,10 @@ def test_no_backlinks_for_isolated_note(tmp_path: Path) -> None:
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
     # Resolve a.md — nobody links to a.md, so no backlinks
-    _, graph = build_note_graph(vault_root / "a.md", vault_response, vault_index, depth=1)
+    result = build_note_graph(vault_root / "a.md", vault_response, vault_index, depth=1)
 
-    assert set(graph.edges) == {"a.md"}
-    assert all(e.resolved for e in graph.edges["a.md"])
+    assert set(result.graph.edges) == {"a.md"}
+    assert all(e.resolved for e in result.graph.edges["a.md"])
 
 
 def test_backlink_circular_links_no_infinite_loop(tmp_path: Path) -> None:
@@ -321,11 +322,11 @@ def test_backlink_circular_links_no_infinite_loop(tmp_path: Path) -> None:
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "a.md", vault_response, vault_index, depth=5)
+    result = build_note_graph(vault_root / "a.md", vault_response, vault_index, depth=5)
 
-    assert graph.metadata.total_files == 2
-    assert "a.md" in graph.edges
-    assert "b.md" in graph.edges
+    assert result.graph.metadata.total_files == 2
+    assert "a.md" in result.graph.edges
+    assert "b.md" in result.graph.edges
 
 
 def test_backlinks_depth_zero_no_edges(tmp_path: Path) -> None:
@@ -337,7 +338,7 @@ def test_backlinks_depth_zero_no_edges(tmp_path: Path) -> None:
 
     vault_index = scan_vault(vault_root)
     vault_response = build_vault_graph(vault_index)
-    _, graph = build_note_graph(vault_root / "b.md", vault_response, vault_index, depth=0)
+    result = build_note_graph(vault_root / "b.md", vault_response, vault_index, depth=0)
 
-    assert graph.edges == {}
-    assert graph.metadata.total_files == 1
+    assert result.graph.edges == {}
+    assert result.graph.metadata.total_files == 1

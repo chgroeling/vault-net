@@ -11,6 +11,7 @@ import structlog
 from link_tracer.consts import _POSSIBLE_EXTENSIONS
 from link_tracer.models import (
     LinkEdge,
+    NoteGraph,
     VaultGraph,
     VaultGraphMetadata,
     VaultIndex,
@@ -76,8 +77,8 @@ def build_note_graph(
     vault_index: VaultIndex,
     *,
     depth: int = 1,
-) -> tuple[str, VaultGraph]:
-    """Resolve links in a note and return the source note path and scoped link graph."""
+) -> NoteGraph:
+    """Resolve links in a note and return a scoped NoteGraph."""
     if depth < 0:
         raise ValueError(f"depth must be >= 0, got {depth}")
     start = time.monotonic()
@@ -125,7 +126,7 @@ def build_note_graph(
             files=graph.metadata.total_files,
             edges=0,
         )
-        return source_note, graph
+        return NoteGraph(source_note=source_note, graph=graph)
     else:
         reverse_index = _build_reverse_index(vault_graph.edges)
         visited: set[str] = {source_note}
@@ -231,4 +232,4 @@ def build_note_graph(
         files=graph.metadata.total_files,
         edges=len(graph.edges),
     )
-    return source_note, graph
+    return NoteGraph(source_note=source_note, graph=graph)

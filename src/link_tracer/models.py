@@ -139,6 +139,24 @@ class VaultGraph:
 
 
 @dataclass(frozen=True, slots=True)
+class NoteGraph:
+    """Result of a single-note BFS link resolution.
+
+    Returned by `build_note_graph`. Bundles the resolved source note path
+    with its scoped `VaultGraph`.
+
+    Attributes:
+        source_note: Vault-relative path of the origin note (or absolute path
+            if the note is outside the vault).
+        graph: Scoped vault graph containing only the notes reachable within
+            the requested BFS depth, including backlinks.
+    """
+
+    source_note: str
+    graph: VaultGraph
+
+
+@dataclass(frozen=True, slots=True)
 class LayerEntry:
     """A single note assigned to a BFS traversal depth layer.
 

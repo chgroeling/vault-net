@@ -129,13 +129,13 @@ def note_graph(
         vault_root, extra_exclude_dir=extra_exclude_dir, no_default_excludes=no_default_excludes
     )
     vault_graph = build_vault_graph(vault_index=vault_index)
-    source_note, graph = build_note_graph(
+    note_graph = build_note_graph(
         note_path=note, vault_graph=vault_graph, vault_index=vault_index, depth=depth
     )
     if fmt == "layered":
-        payload = json.dumps(asdict(to_layered(source_note, graph)), indent=2)
+        payload = json.dumps(asdict(to_layered(note_graph.source_note, note_graph.graph)), indent=2)
     else:
-        payload = json.dumps({"source_note": source_note, **asdict(graph)}, indent=2)
+        payload = json.dumps(asdict(note_graph), indent=2)
     emit_json_output(payload, output)
     console.print("Link tracing complete")
     logger.info("Link tracing complete")
@@ -243,8 +243,8 @@ def vault_graph(
     vault_index = scan_vault(
         vault_root, extra_exclude_dir=extra_exclude_dir, no_default_excludes=no_default_excludes
     )
-    response = build_vault_graph(vault_index=vault_index)
-    payload = json.dumps(asdict(response), indent=2)
+    vault_graph = build_vault_graph(vault_index=vault_index)
+    payload = json.dumps(asdict(vault_graph), indent=2)
     emit_json_output(payload, output)
     console.print("Vault link tracing complete")
     logger.info("Vault link tracing complete")

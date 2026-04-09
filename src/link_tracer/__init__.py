@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
 
-from link_tracer.models import VaultGraph, VaultIndex
+from link_tracer.models import NoteGraph, VaultGraph, VaultIndex
 from link_tracer.note_graph import build_note_graph
 from link_tracer.scan import scan_vault
 from link_tracer.vault_graph import build_vault_graph
@@ -16,6 +16,7 @@ except PackageNotFoundError:
 
 
 __all__ = [
+    "NoteGraph",
     "VaultGraph",
     "VaultIndex",
     "__version__",
