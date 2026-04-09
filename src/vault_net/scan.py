@@ -64,13 +64,19 @@ def _convert_scan_to_index(
         assert entry.stats is not None
         assert entry.file_hash is not None
 
-        # Generate unique slug from filename
+        # Generate unique slug from filename (max SLUG_LENGTH chars)
         filename = Path(entry.file_path).name
         base_slug = filename[:SLUG_LENGTH]
         slug = base_slug
         count = slug_counts.get(base_slug, 0)
         while slug in slug_counts:
-            slug = f"{base_slug}_{count}"
+            # Shorten base to make room for _N suffix (e.g., _0, _1)
+            suffix = f"_{count}"
+            shortened_len = SLUG_LENGTH - len(suffix)
+            if shortened_len < 1:
+                shortened_len = 1
+            shortened_base = base_slug[:shortened_len]
+            slug = f"{shortened_base}{suffix}"
             count += 1
         slug_counts[slug] = 0
         slug_counts[base_slug] = count
