@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import structlog
@@ -10,13 +11,12 @@ from matterify import scan_directory
 from matterify.constants import BLACKLIST
 from obsilink import extract_links
 
+from vault_net.consts import SLUG_LENGTH
 from vault_net.models import VaultFile, VaultFileStats, VaultIndex, VaultIndexMetadata, VaultLink
 
 logger = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from matterify.models import ScanResults
 
 
@@ -55,6 +55,7 @@ def _convert_scan_to_index(
 
     # Convert matterify FileEntry list to VaultFile list
     files: list[VaultFile] = []
+    slug_counts: dict[str, int] = {}
     for entry in scan_result.files:
         # Access custom_data from matterify — already list[Link] from the callback
         raw_links = getattr(entry, "custom_data", None) or []
@@ -62,6 +63,17 @@ def _convert_scan_to_index(
         # These are guaranteed non-None: compute_frontmatter/compute_stats/compute_hash=True
         assert entry.stats is not None
         assert entry.file_hash is not None
+
+        # Generate unique slug from filename
+        filename = Path(entry.file_path).name
+        base_slug = filename[:SLUG_LENGTH]
+        slug = base_slug
+        count = slug_counts.get(base_slug, 0)
+        while slug in slug_counts:
+            slug = f"{base_slug}_{count}"
+            count += 1
+        slug_counts[slug] = 0
+        slug_counts[base_slug] = count
 
         vault_file = VaultFile(
             file_path=entry.file_path,
@@ -75,6 +87,7 @@ def _convert_scan_to_index(
             ),
             file_hash=entry.file_hash,
             links=[VaultLink.from_obsilink_link(link) for link in raw_links if link.is_file],
+            slug=slug,
         )
         files.append(vault_file)
 

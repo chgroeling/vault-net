@@ -190,6 +190,7 @@ class FakeFileEntry:
     stats: object = field(default_factory=FakeFileStats)
     file_hash: str = "deadbeef"
     custom_data: object | None = None
+    slug: str = "note.md"
 
 
 @dataclass

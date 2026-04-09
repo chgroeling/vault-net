@@ -64,3 +64,33 @@ def test_scan_vault_converts_custom_data_to_vault_links() -> None:
     assert link.link_type == "wikilink"
     assert link.target == "other"
     assert link.heading == "Section"
+
+
+def test_scan_vault_slug_collision_with_reserved_name() -> None:
+    """Test slug generation when two files collide and a third has the reserved name.
+
+    When two files have the same first SLUG_LENGTH characters, the second gets _0 suffix.
+    If a third file would naturally have that _0 suffix, it should get _1 instead.
+    """
+    vault_root = Path("/tmp/vault")  # noqa: S108
+    # All have "longname" as first 8 chars of filename
+    # "longname.md" -> "longname"
+    # "longname.txt" -> "longname" (collision, gets "longname_0")
+    # "longname_0.md" -> "longname" (collision, "longname_0" taken, gets "longname_1")
+    fake_files = [
+        FakeFileEntry(file_path="folder1/longname.md"),
+        FakeFileEntry(file_path="folder2/longname.txt"),
+        FakeFileEntry(file_path="folder3/longname_0.md"),
+    ]
+    fake_result = FakeScanResults(
+        metadata=FakeScanMetadata(root=str(vault_root)),
+        files=fake_files,
+    )
+
+    with patch("vault_net.scan.scan_directory", return_value=fake_result):
+        vault_index = scan_vault(vault_root)
+
+    slugs = {f.file_path: f.slug for f in vault_index.files}
+    assert slugs["folder1/longname.md"] == "longname"
+    assert slugs["folder2/longname.txt"] == "longname_0"
+    assert slugs["folder3/longname_0.md"] == "longname_1"

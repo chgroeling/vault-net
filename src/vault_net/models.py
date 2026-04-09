@@ -172,9 +172,12 @@ class VaultFile:
         stats: File statistics object.
         file_hash: Hash of the file contents.
         links: Optional list of extracted links from the file content.
-            Renamed from custom_data in matterify.
+        Renamed from custom_data in matterify.
+        slug: Unique short identifier for the file (first SLUG_LENGTH chars of filename,
+        with numeric suffix if needed for uniqueness).
     """
 
+    slug: str
     file_path: str
     frontmatter: dict | None
     status: str
