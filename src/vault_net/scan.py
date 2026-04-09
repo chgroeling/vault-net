@@ -20,6 +20,36 @@ if TYPE_CHECKING:
     from matterify.models import ScanResults
 
 
+def _generate_slug(filename: str, slug_counts: dict[str, int]) -> str:
+    """Generate a unique slug for a filename, max SLUG_LENGTH chars.
+
+    If the base slug (first SLUG_LENGTH chars of filename) is already
+    used, appends a numeric suffix and shortens the base to fit.
+
+    Args:
+        filename: The filename to generate a slug for.
+        slug_counts: Dict tracking used slugs and collision counts.
+
+    Returns:
+        A unique slug string, at most SLUG_LENGTH characters.
+    """
+    base_slug = filename[:SLUG_LENGTH]
+    slug = base_slug
+    count = slug_counts.get(base_slug, 0)
+    while slug in slug_counts:
+        # Shorten base to make room for _N suffix (e.g., _0, _1)
+        suffix = f"_{count}"
+        shortened_len = SLUG_LENGTH - len(suffix)
+        if shortened_len < 1:
+            shortened_len = 1
+        shortened_base = base_slug[:shortened_len]
+        slug = f"{shortened_base}{suffix}"
+        count += 1
+    slug_counts[slug] = 0
+    slug_counts[base_slug] = count
+    return slug
+
+
 def _convert_scan_to_index(
     vault_root: Path,
     scan_result: ScanResults,
@@ -66,20 +96,7 @@ def _convert_scan_to_index(
 
         # Generate unique slug from filename (max SLUG_LENGTH chars)
         filename = Path(entry.file_path).name
-        base_slug = filename[:SLUG_LENGTH]
-        slug = base_slug
-        count = slug_counts.get(base_slug, 0)
-        while slug in slug_counts:
-            # Shorten base to make room for _N suffix (e.g., _0, _1)
-            suffix = f"_{count}"
-            shortened_len = SLUG_LENGTH - len(suffix)
-            if shortened_len < 1:
-                shortened_len = 1
-            shortened_base = base_slug[:shortened_len]
-            slug = f"{shortened_base}{suffix}"
-            count += 1
-        slug_counts[slug] = 0
-        slug_counts[base_slug] = count
+        slug = _generate_slug(filename, slug_counts)
 
         vault_file = VaultFile(
             file_path=entry.file_path,
