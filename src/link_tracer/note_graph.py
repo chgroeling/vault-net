@@ -118,6 +118,14 @@ def build_note_graph(
             metadata=metadata,
             edges={},
         )
+        duration = time.monotonic() - start
+        logger.debug(
+            "build_note_graph.complete",
+            duration=round(duration, 4),
+            files=graph.metadata.total_files,
+            edges=0,
+        )
+        return source_note, graph
     else:
         reverse_index = _build_reverse_index(vault_graph.edges)
         visited: set[str] = {source_note}

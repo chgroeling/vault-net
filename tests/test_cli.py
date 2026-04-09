@@ -440,6 +440,25 @@ def test_note_graph_format_layered_linked_note_at_depth_one(tmp_path: Path) -> N
     assert any(e["note"] == "about.md" for e in depth_one)
 
 
+def test_note_graph_format_layered_depth_zero_returns_source_only(tmp_path: Path) -> None:
+    """--format layered with --depth 0 returns only the source note at depth 0."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note = vault / "home.md"
+    note.write_text("---\ntitle: Home\n---\n# Home\n\nSee [[about]].\n", encoding="utf-8")
+    (vault / "about.md").write_text("---\ntitle: About\n---\n# About\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["note-graph", str(note), "--vault-root", str(vault), "--format", "layered", "--depth", "0"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["layers"] == [{"depth": 0, "note": "home.md"}]
+
+
 def test_vault_command_outputs_edges_for_multiple_notes(tmp_path: Path) -> None:
     """Vault subcommand resolves links across every note in the vault."""
     create_sample_vault(tmp_path)
