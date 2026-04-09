@@ -13,7 +13,7 @@ from link_tracer.models import (
     LinkEdge,
     VaultGraph,
     VaultGraphMetadata,
-    VaultLink,
+    VaultIndex,
 )
 from link_tracer.utils import _extract_file_links, _normalize_lookup_key, _path_for_response
 

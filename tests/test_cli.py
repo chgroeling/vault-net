@@ -354,6 +354,92 @@ def test_trace_links_uses_path_component_for_duplicate_names(tmp_path: Path) -> 
     ]
 
 
+def test_note_graph_default_format_returns_edges_key(tmp_path: Path) -> None:
+    """Omitting --format produces the edges representation by default."""
+    note = tmp_path / "note.md"
+    note.write_text("# Demo\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["note-graph", str(note), "--vault-root", str(tmp_path)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert "edges" in payload
+    assert "layers" not in payload
+
+
+def test_note_graph_format_edges_returns_edges_key(tmp_path: Path) -> None:
+    """--format edges explicitly produces the edge-dict representation."""
+    note = tmp_path / "note.md"
+    note.write_text("# Demo\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["note-graph", str(note), "--vault-root", str(tmp_path), "--format", "edges"]
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert "edges" in payload
+    assert "layers" not in payload
+
+
+def test_note_graph_format_layered_returns_layers_key(tmp_path: Path) -> None:
+    """--format layered produces a layers list and no edges key."""
+    note = tmp_path / "note.md"
+    note.write_text("# Demo\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["note-graph", str(note), "--vault-root", str(tmp_path), "--format", "layered"]
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert "layers" in payload
+    assert "edges" not in payload
+    assert isinstance(payload["layers"], list)
+
+
+def test_note_graph_format_layered_source_at_depth_zero(tmp_path: Path) -> None:
+    """--format layered places source note at depth 0."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note = vault / "home.md"
+    note.write_text("---\ntitle: Home\n---\n# Home\n\nSee [[about]].\n", encoding="utf-8")
+    (vault / "about.md").write_text("---\ntitle: About\n---\n# About\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["note-graph", str(note), "--vault-root", str(vault), "--format", "layered"]
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    depth_zero = [e for e in payload["layers"] if e["depth"] == 0]
+    assert len(depth_zero) == 1
+    assert depth_zero[0]["note"] == "home.md"
+
+
+def test_note_graph_format_layered_linked_note_at_depth_one(tmp_path: Path) -> None:
+    """--format layered places directly linked notes at depth 1."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note = vault / "home.md"
+    note.write_text("---\ntitle: Home\n---\n# Home\n\nSee [[about]].\n", encoding="utf-8")
+    (vault / "about.md").write_text("---\ntitle: About\n---\n# About\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["note-graph", str(note), "--vault-root", str(vault), "--format", "layered"]
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    depth_one = [e for e in payload["layers"] if e["depth"] == 1]
+    assert any(e["note"] == "about.md" for e in depth_one)
+
+
 def test_vault_command_outputs_edges_for_multiple_notes(tmp_path: Path) -> None:
     """Vault subcommand resolves links across every note in the vault."""
     create_sample_vault(tmp_path)

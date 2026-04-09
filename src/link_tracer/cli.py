@@ -13,6 +13,7 @@ from dotenv import dotenv_values, find_dotenv
 
 from link_tracer import build_note_graph, build_vault_graph, scan_vault
 from link_tracer.logging import configure_debug_logging, get_console
+from link_tracer.transforms import to_layered
 
 logger = structlog.get_logger(__name__)
 
@@ -96,6 +97,13 @@ def main() -> None:
 )
 @click.option("--debug", is_flag=True, help="Enable debug-level structured logging to stderr")
 @click.option("--verbose", is_flag=True, help="Enable verbose console output")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["edges", "layered"], case_sensitive=False),
+    default="edges",
+    help="Output graph representation (edges: full edge dict, layered: BFS depth layers)",
+)
 def note_graph(
     note: Path,
     vault_root: Path | None,
@@ -103,6 +111,7 @@ def note_graph(
     output: Path | None,
     debug: bool,
     verbose: bool,
+    fmt: str,
 ) -> int:
     """Trace links for a single note."""
     configure_debug_logging(debug)
@@ -118,7 +127,10 @@ def note_graph(
     source_note, graph = build_note_graph(
         note_path=note, vault_graph=vault_graph, vault_index=vault_index, depth=depth
     )
-    payload = json.dumps({"source_note": source_note, **asdict(graph)}, indent=2)
+    if fmt == "layered":
+        payload = json.dumps(asdict(to_layered(source_note, graph)), indent=2)
+    else:
+        payload = json.dumps({"source_note": source_note, **asdict(graph)}, indent=2)
     emit_json_output(payload, output)
     console.print("Link tracing complete")
     logger.info("Link tracing complete")

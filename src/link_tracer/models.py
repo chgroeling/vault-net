@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +119,40 @@ class VaultGraph:
     vault_root: str
     metadata: VaultGraphMetadata
     edges: dict[str, list[LinkEdge]]
+
+
+@dataclass(frozen=True, slots=True)
+class LayerEntry:
+    """A single note assigned to a BFS traversal depth layer.
+
+    Attributes:
+        depth: BFS depth at which this note was first reached.
+        note: Vault-relative path of the note.
+    """
+
+    depth: int
+    note: str
+
+
+@dataclass(frozen=True, slots=True)
+class VaultLayered:
+    """Note graph reshaped into a flat BFS layer list.
+
+    Produced by `transforms.to_layered` from a [`VaultGraph`][] scoped to a
+    single source note. A note appears only once, at its shallowest reachable
+    depth.
+
+    Attributes:
+        source_note: Vault-relative path of the origin note (depth 0).
+        vault_root: Absolute path to the vault root directory.
+        metadata: Graph-level summary (file count, errors, source directory).
+        layers: Flat list of depth-tagged note entries, ordered by depth.
+    """
+
+    source_note: str
+    vault_root: str
+    metadata: VaultGraphMetadata
+    layers: list[LayerEntry]
 
 
 @dataclass(frozen=True, slots=True)
