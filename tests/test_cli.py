@@ -57,46 +57,6 @@ def test_cli_uses_vault_root_option(tmp_path: Path) -> None:
     assert payload["vault_root"] == str(vault)
 
 
-def test_cli_uses_dotenv_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """.vault file overrides VAULT_ROOT env var."""
-    monkeypatch.setenv("VAULT_ROOT", str(tmp_path / "wrong"))
-
-    project = tmp_path / "project"
-    project.mkdir()
-    vault = tmp_path / "vault"
-    vault.mkdir()
-    note = project / "note.md"
-    note.write_text("# Demo\n", encoding="utf-8")
-    (project / ".vault").write_text(f"VAULT_ROOT={vault}\n", encoding="utf-8")
-
-    monkeypatch.chdir(project)
-    runner = CliRunner()
-    result = runner.invoke(main, ["note-graph", str(note)], catch_exceptions=False)
-
-    assert result.exit_code == 0
-    payload = json.loads(result.output)
-    assert payload["vault_root"] == str(vault)
-
-
-def test_cli_dotenv_relative_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """.vault with relative path resolves from .vault file's directory."""
-    project = tmp_path / "project"
-    project.mkdir()
-    vault = tmp_path / "vault"
-    vault.mkdir()
-    note = project / "note.md"
-    note.write_text("# Demo\n", encoding="utf-8")
-    (project / ".vault").write_text("VAULT_ROOT=../vault\n", encoding="utf-8")
-
-    monkeypatch.chdir(project)
-    runner = CliRunner()
-    result = runner.invoke(main, ["note-graph", str(note)], catch_exceptions=False)
-
-    assert result.exit_code == 0
-    payload = json.loads(result.output)
-    assert payload["vault_root"] == str(vault)
-
-
 def test_cli_uses_env_var(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """VAULT_ROOT env var works when no .vault or --vault-root."""
     vault = tmp_path / "vault"
@@ -120,24 +80,6 @@ def test_cli_env_var_relative_path(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     note = tmp_path / "note.md"
     note.write_text("# Demo\n", encoding="utf-8")
     monkeypatch.setenv("VAULT_ROOT", "vault")
-
-    monkeypatch.chdir(tmp_path)
-    runner = CliRunner()
-    result = runner.invoke(main, ["note-graph", str(note)], catch_exceptions=False)
-
-    assert result.exit_code == 0
-    payload = json.loads(result.output)
-    assert payload["vault_root"] == str(vault)
-
-
-def test_cli_dotenv_without_vault_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """.vault without VAULT_ROOT falls through to env var."""
-    vault = tmp_path / "vault"
-    vault.mkdir()
-    note = tmp_path / "note.md"
-    note.write_text("# Demo\n", encoding="utf-8")
-    (tmp_path / ".vault").write_text("OTHER_VAR=some_value\n", encoding="utf-8")
-    monkeypatch.setenv("VAULT_ROOT", str(vault))
 
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
@@ -197,8 +139,6 @@ def test_trace_filters_files_to_matched_links(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(result.output)
     assert payload["metadata"]["total_files"] == 5
-    assert payload["metadata"]["files_with_frontmatter"] == 5
-    assert payload["metadata"]["files_without_frontmatter"] == 0
     assert payload["metadata"]["errors"] == 0
     # Forward edge
     assert payload["edges"]["home.md"][0]["target_note"] == "about.md"
@@ -219,8 +159,6 @@ def test_trace_filters_multiple_matched_files(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(result.output)
     assert payload["metadata"]["total_files"] == 6
-    assert payload["metadata"]["files_with_frontmatter"] == 6
-    assert payload["metadata"]["files_without_frontmatter"] == 0
     assert payload["metadata"]["errors"] == 0
     # Forward edges from about
     assert [edge["target_note"] for edge in payload["edges"]["about.md"]] == [

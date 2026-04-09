@@ -9,7 +9,6 @@ from pathlib import Path
 
 import click
 import structlog
-from dotenv import dotenv_values, find_dotenv
 
 from link_tracer import build_note_graph, build_vault_graph, scan_vault
 from link_tracer.logging import configure_debug_logging, get_console
@@ -19,24 +18,12 @@ logger = structlog.get_logger(__name__)
 
 
 def resolve_vault_root(cli_value: Path | None) -> Path:
-    """Resolve vault root directory with precedence: CLI > .vault > env var."""
+    """Resolve vault root directory with precedence: CLI > env var."""
     if cli_value:
         resolved = cli_value if cli_value.is_absolute() else (Path.cwd() / cli_value).resolve()
         if not resolved.exists():
             raise click.UsageError(f"Vault root directory does not exist: {resolved}")
         return resolved
-
-    vault_path = find_dotenv(filename=".vault", usecwd=True)
-    if vault_path:
-        values = dotenv_values(vault_path)
-        vault_root_value = values.get("VAULT_ROOT")
-        if vault_root_value:
-            vault_file = Path(vault_path)
-            path = Path(vault_root_value)
-            resolved = path if path.is_absolute() else (vault_file.parent / path).resolve()
-            if not resolved.exists():
-                raise click.UsageError(f"Vault root directory does not exist: {resolved}")
-            return resolved
 
     env_value = os.environ.get("VAULT_ROOT")
     if env_value:
@@ -48,7 +35,7 @@ def resolve_vault_root(cli_value: Path | None) -> Path:
 
     raise click.UsageError(
         "No vault root directory provided. "
-        "Use --vault-root, set VAULT_ROOT env var, or create a .vault file."
+        "Use --vault-root or set the VAULT_ROOT environment variable."
     )
 
 
