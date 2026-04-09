@@ -10,6 +10,7 @@ import structlog
 from vault_net.consts import _POSSIBLE_EXTENSIONS
 from vault_net.models import (
     LinkEdge,
+    VaultFile,
     VaultGraph,
     VaultGraphMetadata,
     VaultIndex,
@@ -96,24 +97,24 @@ def _resolve_extracted_link(
     )
 
 
-def build_vault_graph(vault_index: VaultIndex) -> VaultGraph:
+def _build_vault_graph(vault_root: Path, files: list[VaultFile]) -> VaultGraph:
     """Resolve all file links for every scanned note in a vault."""
     start = time.monotonic()
-    logger.debug("build_vault_graph.start", total_files=len(vault_index.files))
+    logger.debug("build_vault_graph.start", total_files=len(files))
 
     # Build lookup maps once
     name_to_file: dict[str, Path] = {}
     stem_to_file: dict[str, Path] = {}
     relative_path_to_file: dict[str, Path] = {}
-    for file_path in [Path(f.file_path) for f in vault_index.files]:
+    for file_path in [Path(f.file_path) for f in files]:
         name_to_file.setdefault(file_path.name.lower(), file_path)
         stem_to_file.setdefault(file_path.stem.lower(), file_path)
         relative_path_to_file.setdefault(_normalize_lookup_key(file_path), file_path)
 
-    resolved_vault = vault_index.vault_root.resolve()
+    resolved_vault = vault_root.resolve()
     edges: dict[str, list[LinkEdge]] = {}
 
-    for entry in vault_index.files:
+    for entry in files:
         source_note_path = (resolved_vault / Path(entry.file_path)).resolve()
         source_note = _path_for_response(source_note_path, resolved_vault)
         extracted_links = (
@@ -137,13 +138,12 @@ def build_vault_graph(vault_index: VaultIndex) -> VaultGraph:
         if outgoing_links:
             edges[source_note] = outgoing_links
 
-    files = vault_index.files
     metadata = VaultGraphMetadata(
         total_files=len(files),
         errors=sum(1 for f in files if f.status != "ok"),
     )
     response = VaultGraph(
-        vault_root=str(vault_index.vault_root),
+        vault_root=str(vault_root),
         metadata=metadata,
         edges=edges,
     )
@@ -156,3 +156,8 @@ def build_vault_graph(vault_index: VaultIndex) -> VaultGraph:
         edges=len(response.edges),
     )
     return response
+
+
+def build_vault_graph(vault_index: VaultIndex) -> VaultGraph:
+    """Resolve all file links for every scanned note in a vault."""
+    return _build_vault_graph(vault_index.vault_root, vault_index.files)
