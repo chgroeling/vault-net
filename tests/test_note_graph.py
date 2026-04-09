@@ -8,28 +8,19 @@ from unittest.mock import patch
 import pytest
 
 from link_tracer import build_note_graph, build_vault_graph, scan_vault
-from link_tracer.scan import _convert_scan_to_index
-from tests.fixtures import FakeAggregatedResult, FakeFileEntry, FakeScanMetadata
 
 
-def test_build_note_graph_uses_prebuilt_index() -> None:
+def test_build_note_graph_uses_prebuilt_index(tmp_path: Path) -> None:
     """build_note_graph() works with a prebuilt VaultGraph."""
-    vault_root = Path("/tmp/vault")  # noqa: S108
+    vault_root = tmp_path / "vault"
+    vault_root.mkdir()
+    (vault_root / "home.md").write_text("---\ntitle: Home\n---\n[[about]]", encoding="utf-8")
+    (vault_root / "about.md").write_text("---\ntitle: About\n---", encoding="utf-8")
     note_path = vault_root / "home.md"
-    files = [
-        FakeFileEntry(file_path="home.md", frontmatter={"title": "Home"}),
-        FakeFileEntry(file_path="about.md", frontmatter={"title": "About"}),
-    ]
-    scan_result = FakeAggregatedResult(
-        metadata=FakeScanMetadata(root=str(vault_root)),
-        files=files,
-    )
-    vault_index = _convert_scan_to_index(vault_root, scan_result)
-    with patch.object(Path, "read_text", return_value="[[about]]"):
-        vault_graph = build_vault_graph(vault_index)
 
-    with patch.object(Path, "read_text", return_value="[[about]]"):
-        _, graph = build_note_graph(note_path, vault_graph, vault_index)
+    vault_index = scan_vault(vault_root)
+    vault_graph = build_vault_graph(vault_index)
+    _, graph = build_note_graph(note_path, vault_graph, vault_index)
 
     assert graph.vault_root == str(vault_root)
     assert set(graph.edges) == {"home.md"}
@@ -37,26 +28,18 @@ def test_build_note_graph_uses_prebuilt_index() -> None:
     assert graph.edges["home.md"][0].resolved is True
 
 
-def test_build_note_graph_multiple_calls_reuse_same_index() -> None:
+def test_build_note_graph_multiple_calls_reuse_same_index(tmp_path: Path) -> None:
     """Multiple build_note_graph() calls with same vault response do not rescan."""
-    vault_root = Path("/tmp/vault")  # noqa: S108
-    files = [
-        FakeFileEntry(file_path="home.md", frontmatter={"title": "Home"}),
-        FakeFileEntry(file_path="about.md", frontmatter={"title": "About"}),
-        FakeFileEntry(file_path="contact.md", frontmatter={"title": "Contact"}),
-    ]
-    scan_result = FakeAggregatedResult(
-        metadata=FakeScanMetadata(root=str(vault_root)),
-        files=files,
-    )
-    vault_index = _convert_scan_to_index(vault_root, scan_result)
-    with patch.object(Path, "read_text", return_value="[[about]]"):
-        vault_graph = build_vault_graph(vault_index)
+    vault_root = tmp_path / "vault"
+    vault_root.mkdir()
+    (vault_root / "home.md").write_text("[[about]]", encoding="utf-8")
+    (vault_root / "about.md").write_text("[[home]]", encoding="utf-8")
+    (vault_root / "contact.md").write_text("", encoding="utf-8")
 
-    with (
-        patch("link_tracer.scan.scan_directory") as mock_scan,
-        patch.object(Path, "read_text", return_value="[[about]]"),
-    ):
+    vault_index = scan_vault(vault_root)
+    vault_graph = build_vault_graph(vault_index)
+
+    with patch("link_tracer.scan.scan_directory") as mock_scan:
         build_note_graph(vault_root / "home.md", vault_graph, vault_index)
         build_note_graph(vault_root / "about.md", vault_graph, vault_index)
 

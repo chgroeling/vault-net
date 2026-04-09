@@ -196,8 +196,8 @@ class FakeFileEntry:
 class FakeScanMetadata:
     root: str = "/tmp/vault"  # noqa: S108
     total_files: int = 0
-    files_with_frontmatter: int = 0
-    files_without_frontmatter: int = 0
+    files_with_frontmatter: int | None = 0
+    files_without_frontmatter: int | None = 0
     errors: int = 0
     scan_duration_seconds: float = 0.0
     avg_duration_per_file_ms: float = 0.0
@@ -205,6 +205,6 @@ class FakeScanMetadata:
 
 
 @dataclass
-class FakeAggregatedResult:
+class FakeScanResults:
     metadata: FakeScanMetadata = field(default_factory=FakeScanMetadata)
     files: list[FakeFileEntry] = field(default_factory=list)

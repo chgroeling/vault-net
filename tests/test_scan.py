@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from link_tracer import scan_vault
 from link_tracer.models import VaultIndex
-from tests.fixtures import FakeAggregatedResult, FakeFileEntry, FakeScanMetadata
+from tests.fixtures import FakeFileEntry, FakeScanMetadata, FakeScanResults
 
 
 def test_scan_vault_delegates_to_scan_directory() -> None:
@@ -16,7 +16,7 @@ def test_scan_vault_delegates_to_scan_directory() -> None:
     fake_files = [
         FakeFileEntry(file_path="note.md"),
     ]
-    fake_result = FakeAggregatedResult(
+    fake_result = FakeScanResults(
         metadata=FakeScanMetadata(root=str(vault_root)),
         files=fake_files,
     )
