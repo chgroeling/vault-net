@@ -11,9 +11,9 @@ import structlog
 from link_tracer.consts import _POSSIBLE_EXTENSIONS
 from link_tracer.models import (
     LinkEdge,
-    ResolveMetadata,
     VaultGraph,
-    VaultIndex,
+    VaultGraphMetadata,
+    VaultLink,
 )
 from link_tracer.utils import _extract_file_links, _normalize_lookup_key, _path_for_response
 
@@ -102,20 +102,15 @@ def build_note_graph(
 
     if depth == 0:
         if source_entry is None:
-            metadata = ResolveMetadata(
+            metadata = VaultGraphMetadata(
                 source_directory=vault_graph.metadata.source_directory,
                 total_files=1,
-                files_with_frontmatter=0,
-                files_without_frontmatter=1,
                 errors=0,
             )
         else:
-            with_fm = 1 if source_entry.frontmatter else 0
-            metadata = ResolveMetadata(
+            metadata = VaultGraphMetadata(
                 source_directory=vault_graph.metadata.source_directory,
                 total_files=1,
-                files_with_frontmatter=with_fm,
-                files_without_frontmatter=1 - with_fm,
                 errors=0 if source_entry.status == "ok" else 1,
             )
         graph = VaultGraph(
@@ -206,23 +201,20 @@ def build_note_graph(
         if source_entry and source_entry not in filtered_files:
             filtered_files = [source_entry, *filtered_files]
 
-        extra = 0 if source_entry else 1
-        total = len(filtered_files) + extra
-        with_fm = sum(1 for f in filtered_files if f.frontmatter)
-        errors = sum(1 for f in filtered_files if f.status != "ok")
-        metadata = ResolveMetadata(
-            source_directory=vault_graph.metadata.source_directory,
-            total_files=total,
-            files_with_frontmatter=with_fm,
-            files_without_frontmatter=total - with_fm,
-            errors=errors,
-        )
+    extra = 0 if source_entry else 1
+    total = len(filtered_files) + extra
+    errors = sum(1 for f in filtered_files if f.status != "ok")
+    metadata = VaultGraphMetadata(
+        source_directory=vault_graph.metadata.source_directory,
+        total_files=total,
+        errors=errors,
+    )
 
-        graph = VaultGraph(
-            vault_root=vault_graph.vault_root,
-            metadata=metadata,
-            edges=edges,
-        )
+    graph = VaultGraph(
+        vault_root=vault_graph.vault_root,
+        metadata=metadata,
+        edges=edges,
+    )
 
     duration = time.monotonic() - start
     logger.debug(

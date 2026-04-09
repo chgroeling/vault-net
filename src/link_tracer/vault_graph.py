@@ -10,8 +10,8 @@ import structlog
 from link_tracer.consts import _POSSIBLE_EXTENSIONS
 from link_tracer.models import (
     LinkEdge,
-    ResolveMetadata,
     VaultGraph,
+    VaultGraphMetadata,
     VaultIndex,
     VaultLink,
 )
@@ -138,13 +138,9 @@ def build_vault_graph(vault_index: VaultIndex) -> VaultGraph:
             edges[source_note] = outgoing_links
 
     files = vault_index.files
-    total = len(files)
-    with_fm = sum(1 for f in files if f.frontmatter)
-    metadata = ResolveMetadata(
+    metadata = VaultGraphMetadata(
         source_directory=vault_index.metadata.root,
-        total_files=total,
-        files_with_frontmatter=with_fm,
-        files_without_frontmatter=total - with_fm,
+        total_files=len(files),
         errors=sum(1 for f in files if f.status != "ok"),
     )
     response = VaultGraph(

@@ -101,13 +101,11 @@ class LinkEdge:
 
 
 @dataclass(frozen=True, slots=True)
-class ResolveMetadata:
-    """Metadata summary for a resolution result."""
+class VaultGraphMetadata:
+    """Metadata summary for a vault graph result."""
 
     source_directory: str
     total_files: int
-    files_with_frontmatter: int
-    files_without_frontmatter: int
     errors: int
 
 
@@ -116,7 +114,7 @@ class VaultGraph:
     """Vault-wide link graph: edges between notes with summary metadata."""
 
     vault_root: str
-    metadata: ResolveMetadata
+    metadata: VaultGraphMetadata
     edges: dict[str, list[LinkEdge]]
 
 
