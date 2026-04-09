@@ -10,9 +10,9 @@ from pathlib import Path
 import click
 import structlog
 
-from link_tracer import build_note_graph, build_vault_graph, scan_vault
-from link_tracer.logging import configure_debug_logging, get_console
-from link_tracer.transforms import to_layered
+from vault_net import build_note_graph, build_vault_graph, scan_vault
+from vault_net.logging import configure_debug_logging, get_console
+from vault_net.transforms import to_layered
 
 logger = structlog.get_logger(__name__)
 

@@ -7,15 +7,15 @@ from pathlib import Path
 
 import structlog
 
-from link_tracer.consts import _POSSIBLE_EXTENSIONS
-from link_tracer.models import (
+from vault_net.consts import _POSSIBLE_EXTENSIONS
+from vault_net.models import (
     LinkEdge,
     VaultGraph,
     VaultGraphMetadata,
     VaultIndex,
     VaultLink,
 )
-from link_tracer.utils import _extract_file_links, _normalize_lookup_key, _path_for_response
+from vault_net.utils import _extract_file_links, _normalize_lookup_key, _path_for_response
 
 logger = structlog.get_logger(__name__)
 

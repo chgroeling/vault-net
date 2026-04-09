@@ -9,9 +9,9 @@ A command-line and Python library tool that scans an Obsidian vault, resolves al
 project/
 ├── .python-version, pyproject.toml        # Runtime & packaging config
 ├── README.md, LICENSE, AGENTS.md          # Project docs
-├── src/link_tracer/                        # Source code
+├── src/vault_net/                        # Source code
 │   ├── __init__.py                        # Public surface: exports VaultGraph, VaultIndex, build_note_graph, build_vault_graph, scan_vault
-│   ├── __main__.py                        # Module runner: python -m link_tracer
+│   ├── __main__.py                        # Module runner: python -m vault_net
 │   ├── cli.py                             # Click CLI: note-graph, vault-graph subcommands
 │   ├── consts.py                          # Shared constants (_FILE_LINKS_KEY, _POSSIBLE_EXTENSIONS)
 │   ├── logging.py                         # structlog + rich console configuration
@@ -50,7 +50,7 @@ project/
 - **Management:** `uv add <pkg>` (use `--dev` for dev); `uv remove <pkg>`; `uv pip list`.
 
 ### Execution & Lifecycle
-- **Run:** `uv run python -m link_tracer` or `uv run vault-net`.
+- **Run:** `uv run python -m vault_net` or `uv run vault-net`.
 - **Dist:** `uv build` (wheel/sdist).
 - **Publish:** `uv publish` (or GitHub workflow-based trusted publishing).
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from link_tracer import build_vault_graph, scan_vault
+from vault_net import build_vault_graph, scan_vault
 
 
 def test_build_vault_graph_returns_first_match_for_duplicate_names(tmp_path: Path) -> None:

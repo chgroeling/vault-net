@@ -9,8 +9,8 @@ import structlog
 from matterify import scan_directory
 from matterify.constants import BLACKLIST
 
-from link_tracer.models import VaultFile, VaultFileStats, VaultIndex, VaultIndexMetadata, VaultLink
-from link_tracer.utils import _extract_file_links
+from vault_net.models import VaultFile, VaultFileStats, VaultIndex, VaultIndexMetadata, VaultLink
+from vault_net.utils import _extract_file_links
 
 logger = structlog.get_logger(__name__)
 

@@ -9,7 +9,7 @@ from obsilink import extract_links
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from link_tracer.models import VaultLink
+    from vault_net.models import VaultLink
 
 
 def _normalize_lookup_key(path: Path) -> str:
@@ -19,7 +19,7 @@ def _normalize_lookup_key(path: Path) -> str:
 
 def _extract_file_links(content: str) -> list[VaultLink]:
     """Extract file-like links from note content as serializable models."""
-    from link_tracer.models import VaultLink
+    from vault_net.models import VaultLink
 
     links = extract_links(content)
     return [

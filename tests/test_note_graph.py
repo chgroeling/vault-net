@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from link_tracer import NoteGraph, build_note_graph, build_vault_graph, scan_vault
+from vault_net import NoteGraph, build_note_graph, build_vault_graph, scan_vault
 
 
 def test_build_note_graph_uses_prebuilt_index(tmp_path: Path) -> None:
@@ -40,7 +40,7 @@ def test_build_note_graph_multiple_calls_reuse_same_index(tmp_path: Path) -> Non
     vault_index = scan_vault(vault_root)
     vault_graph = build_vault_graph(vault_index)
 
-    with patch("link_tracer.scan.scan_directory") as mock_scan:
+    with patch("vault_net.scan.scan_directory") as mock_scan:
         build_note_graph(vault_root / "home.md", vault_graph, vault_index)
         build_note_graph(vault_root / "about.md", vault_graph, vault_index)
 

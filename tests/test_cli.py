@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from link_tracer import __version__
-from link_tracer.cli import main
+from vault_net import __version__
+from vault_net.cli import main
 from tests.fixtures import create_sample_vault, create_test_vault
 
 

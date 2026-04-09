@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
 
-from link_tracer.models import NoteGraph, VaultGraph, VaultIndex
-from link_tracer.note_graph import build_note_graph
-from link_tracer.scan import scan_vault
-from link_tracer.vault_graph import build_vault_graph
+from vault_net.models import NoteGraph, VaultGraph, VaultIndex
+from vault_net.note_graph import build_note_graph
+from vault_net.scan import scan_vault
+from vault_net.vault_graph import build_vault_graph
 
 try:
     __version__ = version("vault-net")

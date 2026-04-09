@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from link_tracer.models import (
+from vault_net.models import (
     LayerEntry,
     LinkEdge,
     VaultGraph,
@@ -10,7 +10,7 @@ from link_tracer.models import (
     VaultLayered,
     VaultLink,
 )
-from link_tracer.transforms import to_layered
+from vault_net.transforms import to_layered
 
 
 def _make_graph(edges: dict[str, list[LinkEdge]], total_files: int = 1) -> VaultGraph:

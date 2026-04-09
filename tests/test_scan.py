@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from link_tracer import scan_vault
-from link_tracer.models import VaultIndex
+from vault_net import scan_vault
+from vault_net.models import VaultIndex
 from tests.fixtures import FakeFileEntry, FakeScanMetadata, FakeScanResults
 
 
@@ -21,7 +21,7 @@ def test_scan_vault_delegates_to_scan_directory() -> None:
         files=fake_files,
     )
 
-    with patch("link_tracer.scan.scan_directory", return_value=fake_result) as mock_scan:
+    with patch("vault_net.scan.scan_directory", return_value=fake_result) as mock_scan:
         vault_index = scan_vault(vault_root)
 
     assert isinstance(vault_index, VaultIndex)
@@ -53,7 +53,7 @@ def test_scan_vault_converts_custom_data_to_vault_links() -> None:
         files=fake_files,
     )
 
-    with patch("link_tracer.scan.scan_directory", return_value=fake_result):
+    with patch("vault_net.scan.scan_directory", return_value=fake_result):
         vault_index = scan_vault(vault_root)
 
     assert vault_index.files[0].links is not None

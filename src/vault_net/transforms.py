@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 
-from link_tracer.models import LayerEntry, VaultGraph, VaultLayered
+from vault_net.models import LayerEntry, VaultGraph, VaultLayered
 
 __all__ = ["to_layered"]
 
