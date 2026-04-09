@@ -37,6 +37,23 @@ class VaultIndexMetadata:
 
 
 @dataclass(frozen=True, slots=True)
+class VaultFileStats:
+    """File statistics for a scanned vault file.
+
+    Mirrors matterify.models.FileStats but uses local types.
+
+    Attributes:
+        file_size: File size in bytes, or None if unavailable.
+        modified_time: Last modification time as ISO 8601 string, or None.
+        access_time: Last access time as ISO 8601 string, or None.
+    """
+
+    file_size: int | None
+    modified_time: str | None
+    access_time: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class VaultFile:
     """Represents a scanned file in the vault.
 
@@ -48,8 +65,8 @@ class VaultFile:
         frontmatter: Extracted YAML frontmatter as a dictionary.
         status: Scan status string (e.g., "ok").
         error: Error message if status is not "ok", otherwise None.
-        stats: Optional file statistics object.
-        file_hash: Optional hash of the file contents.
+        stats: File statistics object.
+        file_hash: Hash of the file contents.
         links: Optional list of extracted links from the file content.
             Renamed from custom_data in matterify.
     """
@@ -58,8 +75,8 @@ class VaultFile:
     frontmatter: dict
     status: str
     error: str | None
-    stats: object | None
-    file_hash: str | None
+    stats: VaultFileStats
+    file_hash: str
     links: list[VaultLink] | None
 
 

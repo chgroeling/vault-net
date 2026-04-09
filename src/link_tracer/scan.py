@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import structlog
 from matterify import scan_directory
 
-from link_tracer.models import VaultFile, VaultIndex, VaultIndexMetadata, VaultLink
+from link_tracer.models import VaultFile, VaultFileStats, VaultIndex, VaultIndexMetadata, VaultLink
 from link_tracer.utils import _extract_file_links
 
 logger = structlog.get_logger(__name__)
@@ -52,6 +52,9 @@ def _convert_scan_to_index(
     """
     # Convert matterify ScanMetadata to VaultIndexMetadata
     meta = scan_result.metadata
+    # These are guaranteed non-None because compute_frontmatter=True
+    assert meta.files_with_frontmatter is not None
+    assert meta.files_without_frontmatter is not None
     metadata = VaultIndexMetadata(
         root=meta.root,
         total_files=meta.total_files,
@@ -85,12 +88,20 @@ def _convert_scan_to_index(
             ]
             if not links:
                 links = None
+        # These are guaranteed non-None: compute_frontmatter/compute_stats/compute_hash=True
+        assert entry.frontmatter is not None
+        assert entry.stats is not None
+        assert entry.file_hash is not None
         vault_file = VaultFile(
             file_path=entry.file_path,
             frontmatter=entry.frontmatter,
             status=entry.status,
             error=entry.error,
-            stats=entry.stats,
+            stats=VaultFileStats(
+                file_size=entry.stats.file_size,
+                modified_time=entry.stats.modified_time,
+                access_time=entry.stats.access_time,
+            ),
             file_hash=entry.file_hash,
             links=links,
         )
@@ -115,7 +126,13 @@ def scan_vault(vault_root: Path) -> VaultIndex:
     start = time.monotonic()
     logger.debug("scan_vault.start", vault_root=str(vault_root))
 
-    scan_result = scan_directory(vault_root, callback=_extract_file_links_callback)
+    scan_result = scan_directory(
+        vault_root,
+        compute_hash=True,
+        compute_stats=True,
+        compute_frontmatter=True,
+        callback=_extract_file_links_callback,
+    )
 
     # Inline build_index logic
     index = _convert_scan_to_index(vault_root, scan_result)
