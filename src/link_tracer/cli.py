@@ -142,6 +142,60 @@ def note_graph(
     return 0
 
 
+@main.command("index")
+@click.option(
+    "--vault-root",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Vault root directory (overrides VAULT_ROOT env and .vault file)",
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(path_type=Path, dir_okay=False),
+    default=None,
+    help="Write JSON output to file instead of stdout",
+)
+@click.option("--debug", is_flag=True, help="Enable debug-level structured logging to stderr")
+@click.option("--verbose", is_flag=True, help="Enable verbose console output")
+@click.option(
+    "-e",
+    "--exclude-dir",
+    "extra_exclude_dir",
+    multiple=True,
+    metavar="DIR",
+    help="Additional directory name to exclude from traversal (repeatable)",
+)
+@click.option(
+    "--no-default-excludes",
+    is_flag=True,
+    help="Disable built-in default exclusions; use only --exclude-dir entries",
+)
+def index_cmd(
+    vault_root: Path | None,
+    output: Path | None,
+    debug: bool,
+    verbose: bool,
+    extra_exclude_dir: tuple[str, ...],
+    no_default_excludes: bool,
+) -> int:
+    """Output the scanned vault index as JSON."""
+    configure_debug_logging(debug)
+    console = get_console(verbose)
+
+    logger.debug("Starting vault index scan", vault_root=str(vault_root) if vault_root else None)
+    vault_root = resolve_vault_root(vault_root)
+    logger.info("Scanning vault index", vault_root=str(vault_root))
+    vault_index = scan_vault(
+        vault_root, extra_exclude_dir=extra_exclude_dir, no_default_excludes=no_default_excludes
+    )
+    payload = json.dumps(asdict(vault_index), indent=2, default=str)
+    emit_json_output(payload, output)
+    console.print("Vault index scan complete")
+    logger.info("Vault index scan complete")
+    return 0
+
+
 @main.command("vault-graph")
 @click.option(
     "--vault-root",
