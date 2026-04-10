@@ -33,7 +33,7 @@ def _generate_slug(filename: str, slug_counts: dict[str, int]) -> str:
     Returns:
         A unique slug string, at most SLUG_LENGTH characters.
     """
-    base_slug = filename[:SLUG_LENGTH]
+    base_slug = filename[:SLUG_LENGTH].replace(" ", "-")
     slug = base_slug
     count = slug_counts.get(base_slug, 0)
     while slug in slug_counts:
