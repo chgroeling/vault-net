@@ -95,7 +95,10 @@ def test_note_graph_format_layered(tmp_path: Path) -> None:
     payload = json.loads(result.output)
     assert payload["source_note"] == "home.md"
     assert payload["total_files"] == 2
-    assert payload["layers"][0] == {"depth": 0, "note": "home.md"}
+    assert payload["layers"][0] == {
+        "depth": 0,
+        "note": {"slug": "home.md", "file_path": "home.md"},
+    }
 
 
 def test_edges_command_default_edge_list(tmp_path: Path) -> None:

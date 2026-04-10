@@ -1,4 +1,4 @@
-"""Graph transform utilities for serialized output payloads."""
+"""Graph view utilities for serialized output payloads."""
 
 from __future__ import annotations
 
@@ -6,10 +6,8 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 
-from vault_net.models import LayerEntry, VaultGraph, VaultLayered
-
 if TYPE_CHECKING:
-    from vault_net.models import VaultFile
+    from vault_net.models import VaultFile, VaultGraph
     from vault_net.vault_registry import VaultRegistry
 
 
@@ -51,18 +49,26 @@ def build_adjacency_list(
     return payload
 
 
-def build_layered_repr(source_slug: str, graph: VaultGraph) -> VaultLayered:
-    """Transform an ego graph into a flat BFS depth-layer list."""
-    layers: list[LayerEntry] = []
+def build_layered_repr(
+    source_slug: str,
+    graph: VaultGraph,
+    vault_registry: VaultRegistry,
+) -> dict[str, object]:
+    """Transform an ego graph into a flat BFS depth-layer dictionary."""
+    layers: list[dict[str, object]] = []
     for depth, nodes in enumerate(nx.bfs_layers(graph.digraph.to_undirected(), [source_slug])):
-        layers.extend(LayerEntry(depth=depth, note=str(node)) for node in nodes)
+        for node in nodes:
+            note = vault_registry.get_file(str(node))
+            if note is None:
+                continue
+            layers.append({"depth": depth, "note": note.to_file()})
 
-    return VaultLayered(
-        source_note=source_slug,
-        vault_root=str(graph.vault_root),
-        total_files=graph.digraph.number_of_nodes(),
-        layers=layers,
-    )
+    return {
+        "source_note": source_slug,
+        "vault_root": str(graph.vault_root),
+        "total_files": graph.digraph.number_of_nodes(),
+        "layers": layers,
+    }
 
 
 __all__ = ["build_adjacency_list", "build_layered_repr", "build_vault_edge_list"]

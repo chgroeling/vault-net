@@ -67,39 +67,6 @@ class VaultFileStats:
 
 
 @dataclass(frozen=True, slots=True)
-class LayerEntry:
-    """A single note assigned to a BFS traversal depth layer.
-
-    Attributes:
-        depth: BFS depth at which this note was first reached.
-        note: Vault-relative path of the note.
-    """
-
-    depth: int
-    note: str
-
-
-@dataclass(frozen=True, slots=True)
-class VaultLayered:
-    """Note graph reshaped into a flat BFS layer list.
-
-    Produced by `transforms.build_layered_repr` from an ego graph around a source
-    slug. A note appears only once, at its shallowest reachable depth.
-
-    Attributes:
-        source_note: Vault-relative path of the origin note (depth 0).
-        vault_root: Absolute path to the vault root directory.
-        total_files: Number of notes in the layered graph.
-        layers: Flat list of depth-tagged note entries, ordered by depth.
-    """
-
-    source_note: str
-    vault_root: str
-    total_files: int
-    layers: list[LayerEntry]
-
-
-@dataclass(frozen=True, slots=True)
 class VaultGraph:
     """Resolved vault graph representation.
 

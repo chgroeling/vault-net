@@ -18,8 +18,8 @@ from vault_net import (
 )
 from vault_net.logging import configure_debug_logging, get_console
 from vault_net.models import VaultGraph, VaultGraphMetadata
-from vault_net.transforms import build_adjacency_list, build_layered_repr, build_vault_edge_list
 from vault_net.utils import collapse_vault_file_json
+from vault_net.views import build_adjacency_list, build_layered_repr, build_vault_edge_list
 
 logger = structlog.get_logger(__name__)
 
@@ -90,6 +90,34 @@ def _serialize_adjacency_list(
     return {
         source_slug: [asdict(target_file) for target_file in target_files]
         for source_slug, target_files in adjacency.items()
+    }
+
+
+def _serialize_layered_repr(
+    source_slug: str,
+    graph: VaultGraph,
+    vault_registry: VaultRegistry,
+) -> dict[str, object]:
+    """Serialize graph layers as depth entries with `VaultFile` notes."""
+    layered = build_layered_repr(source_slug, graph, vault_registry)
+    raw_layers = layered.get("layers", [])
+    if not isinstance(raw_layers, list):
+        return layered
+
+    layers: list[dict[str, object]] = []
+    for entry in raw_layers:
+        if not isinstance(entry, dict):
+            continue
+        note = entry.get("note")
+        if note is None:
+            continue
+        layers.append({"depth": entry.get("depth", 0), "note": asdict(note)})
+
+    return {
+        "source_note": layered.get("source_note", source_slug),
+        "vault_root": layered.get("vault_root", str(graph.vault_root)),
+        "total_files": layered.get("total_files", graph.digraph.number_of_nodes()),
+        "layers": layers,
     }
 
 
@@ -175,7 +203,9 @@ def note_graph(
     )
 
     if fmt == "layered":
-        payload = json.dumps(asdict(build_layered_repr(slug, ego_vault_graph)), indent=2)
+        payload = json.dumps(
+            _serialize_layered_repr(slug, ego_vault_graph, vault_registry), indent=2
+        )
     elif fmt == "adjacency_list":
         payload = json.dumps(_serialize_adjacency_list(ego_vault_graph, vault_registry), indent=2)
     else:

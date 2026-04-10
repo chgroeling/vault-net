@@ -18,7 +18,7 @@ project/
 │   ├── models.py                          # Frozen dataclasses: VaultIndex, VaultGraph, VaultLayered, LinkEdge, etc.
 │   ├── note_graph.py                      # build_note_graph(): BFS-scoped subgraph for a single note
 │   ├── scan.py                            # scan_vault(): matterify integration, VaultIndex builder
-│   ├── transforms.py                      # to_layered() and build_vault_edge_list() output transforms
+│   ├── views.py                           # JSON-ready graph views for CLI outputs
 │   ├── utils.py                           # Link extraction helpers (_extract_file_links, _normalize_lookup_key, _path_for_response)
 │   ├── vault_digraph.py                   # build_vault_digraph(): resolved slug digraph builder
 │   ├── vault_graph.py                     # build_vault_graph(): full vault link resolution
@@ -31,14 +31,13 @@ project/
 │   ├── test_integration.py                # obsilink integration smoke test
 │   ├── test_note_graph.py                 # build_note_graph unit tests (depth, backlinks, circular)
 │   ├── test_scan.py                       # scan_vault delegation test
-│   ├── test_transforms.py                 # to_layered BFS transform tests
+│   ├── test_views.py                      # layered view BFS tests
 │   ├── test_vault_digraph.py              # digraph and edge-list transform tests
 │   └── test_vault_graph.py                # build_vault_graph resolution tests
 └── docs/                                   # MkDocs source
 ```
 
 ## RULES
-- Pytest unit tests.
 - Use skill `python-code-style` and `python-design-patterns` before starting to write python code
 - Use skill `python-testing-patterns` before starting to write tests in pytest.
 
@@ -89,7 +88,7 @@ project/
 ### Digraph (`vault_digraph.py`)
 `build_vault_digraph()` resolves note links into a directed slug graph with unresolved links omitted and self-loops filtered with a warning.
 
-### Edge List Transform (`transforms.py`)
+### Edge List View (`views.py`)
 `build_vault_edge_list()` converts the resolved slug digraph to a deduplicated list of lightweight `VaultFile` pairs using a `VaultRegistry`.
 
 ### Vault Registry (`vault_registry.py`)
@@ -98,8 +97,8 @@ project/
 ### Note Graph (`note_graph.py`)
 `build_note_graph()` performs BFS from a source note through the vault graph, collecting forward edges and backlinks up to the specified depth. `depth=0` returns only the source; `depth=1` returns direct links and backlinks; higher depths traverse recursively. Circular links are handled safely via visited-set tracking.
 
-### Transforms (`transforms.py`)
-`to_layered()` reshapes a `VaultGraph` into a `VaultLayered` — a flat BFS depth-layer list where each note appears once at its shallowest reachable depth. Traverses both forward edges and backlinks. Unresolved edges are excluded.
+### Layered View (`views.py`)
+`build_layered_repr()` reshapes a `VaultGraph` into a layered dictionary payload. Each note appears once at its shallowest reachable depth and is represented as a lightweight `VaultFile`. Traverses both forward edges and backlinks. Unresolved edges are excluded.
 
 ### Link Extraction (`utils.py`)
 `_extract_file_links()` uses `obsilink.extract_links()` to parse note content, filtering to `link.is_file` targets only. Each link is converted to a `VaultLink` dataclass for serialization.
