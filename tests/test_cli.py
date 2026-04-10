@@ -35,7 +35,10 @@ def test_note_graph_uses_slug_argument(tmp_path: Path) -> None:
     (vault / "about.md").write_text("", encoding="utf-8")
 
     runner = CliRunner()
-    result = runner.invoke(main, ["note-graph", "home.md", "--vault-root", str(vault)])
+    result = runner.invoke(
+        main,
+        ["note-graph", "home.md", "--vault-root", str(vault), "--format", "json"],
+    )
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
@@ -59,8 +62,8 @@ def test_note_graph_unknown_slug_returns_usage_error(tmp_path: Path) -> None:
     assert "Unknown slug" in result.output
 
 
-def test_note_graph_format_adjacency_list(tmp_path: Path) -> None:
-    """note-graph supports adjacency_list format."""
+def test_note_graph_style_adjacency_list(tmp_path: Path) -> None:
+    """note-graph supports adjacency_list style."""
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "home.md").write_text("[[about]]", encoding="utf-8")
@@ -69,7 +72,16 @@ def test_note_graph_format_adjacency_list(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["note-graph", "home.md", "--vault-root", str(vault), "--format", "adjacency_list"],
+        [
+            "note-graph",
+            "home.md",
+            "--vault-root",
+            str(vault),
+            "--style",
+            "adjacency_list",
+            "--format",
+            "json",
+        ],
     )
 
     assert result.exit_code == 0
@@ -78,8 +90,8 @@ def test_note_graph_format_adjacency_list(tmp_path: Path) -> None:
     assert payload["about.md"] == []
 
 
-def test_note_graph_format_layered(tmp_path: Path) -> None:
-    """note-graph supports layered format."""
+def test_note_graph_style_layered(tmp_path: Path) -> None:
+    """note-graph supports layered style."""
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "home.md").write_text("[[about]]", encoding="utf-8")
@@ -88,7 +100,16 @@ def test_note_graph_format_layered(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["note-graph", "home.md", "--vault-root", str(vault), "--format", "layered"],
+        [
+            "note-graph",
+            "home.md",
+            "--vault-root",
+            str(vault),
+            "--style",
+            "layered",
+            "--format",
+            "json",
+        ],
     )
 
     assert result.exit_code == 0
@@ -101,13 +122,13 @@ def test_note_graph_format_layered(tmp_path: Path) -> None:
     }
 
 
-def test_edges_command_default_edge_list(tmp_path: Path) -> None:
-    """edges defaults to edge_list output."""
+def test_graph_command_json_edge_list(tmp_path: Path) -> None:
+    """graph emits edge_list JSON payload."""
     create_sample_vault(tmp_path)
     vault = tmp_path / "sample_vault"
 
     runner = CliRunner()
-    result = runner.invoke(main, ["edges", "--vault-root", str(vault)])
+    result = runner.invoke(main, ["graph", "--vault-root", str(vault), "--format", "json"])
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
@@ -117,8 +138,8 @@ def test_edges_command_default_edge_list(tmp_path: Path) -> None:
     assert "slug" in payload["edges"][0][0]
 
 
-def test_edges_command_format_adjacency_list(tmp_path: Path) -> None:
-    """edges supports adjacency_list format."""
+def test_graph_command_style_adjacency_list(tmp_path: Path) -> None:
+    """graph supports adjacency_list style."""
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "home.md").write_text("[[about]]", encoding="utf-8")
@@ -127,7 +148,15 @@ def test_edges_command_format_adjacency_list(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["edges", "--vault-root", str(vault), "--format", "adjacency_list"],
+        [
+            "graph",
+            "--vault-root",
+            str(vault),
+            "--style",
+            "adjacency_list",
+            "--format",
+            "json",
+        ],
     )
 
     assert result.exit_code == 0
@@ -139,7 +168,7 @@ def test_edges_command_format_adjacency_list(tmp_path: Path) -> None:
 def test_cli_errors_without_vault_root() -> None:
     """Exit with error when no vault directory is provided."""
     runner = CliRunner()
-    result = runner.invoke(main, ["edges"])
+    result = runner.invoke(main, ["graph"])
 
     assert result.exit_code != 0
     assert "No vault root directory provided" in result.output
@@ -155,7 +184,16 @@ def test_note_graph_output_writes_json_file(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["note-graph", "home.md", "--vault-root", str(vault), "--output", str(output)],
+        [
+            "note-graph",
+            "home.md",
+            "--vault-root",
+            str(vault),
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
     )
 
     assert result.exit_code == 0
@@ -174,6 +212,64 @@ def test_cli_uses_env_var(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("VAULT_ROOT", str(vault))
 
     runner = CliRunner()
-    result = runner.invoke(main, ["note-graph", "home.md"], catch_exceptions=False)
+    result = runner.invoke(
+        main,
+        ["note-graph", "home.md", "--format", "json"],
+        catch_exceptions=False,
+    )
 
     assert result.exit_code == 0
+
+
+def test_graph_defaults_to_pretty_output(tmp_path: Path) -> None:
+    """graph defaults to pretty table output."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "home.md").write_text("[[about]]", encoding="utf-8")
+    (vault / "about.md").write_text("", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["graph", "--vault-root", str(vault)])
+
+    assert result.exit_code == 0
+    assert "Source Slug" in result.output
+    assert "Target Slug" in result.output
+    assert "home.md" in result.output
+
+
+def test_note_graph_layered_pretty_slug_before_depth(tmp_path: Path) -> None:
+    """layered pretty output shows slug column before depth."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "home.md").write_text("[[about]]", encoding="utf-8")
+    (vault / "about.md").write_text("", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["note-graph", "home.md", "--vault-root", str(vault), "--style", "layered"],
+    )
+
+    assert result.exit_code == 0
+    assert "Slug" in result.output
+    assert "Depth" in result.output
+    assert result.output.find("Slug") < result.output.find("Depth")
+
+
+def test_graph_adjacency_pretty_includes_slug_column(tmp_path: Path) -> None:
+    """adjacency pretty output includes slug column."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "home.md").write_text("[[about]]", encoding="utf-8")
+    (vault / "about.md").write_text("", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["graph", "--vault-root", str(vault), "--style", "adjacency_list"],
+    )
+
+    assert result.exit_code == 0
+    assert "Slug" in result.output
+    assert "Path" in result.output
+    assert "Targets" in result.output

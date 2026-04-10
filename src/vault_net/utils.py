@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING
 
 from obsilink import extract_links
@@ -31,17 +30,3 @@ def _path_for_response(path: Path, resolved_vault: Path) -> str:
         return str(resolved_path.relative_to(resolved_vault))
     except ValueError:
         return str(resolved_path)
-
-
-_VAULT_FILE_JSON_BLOCK = re.compile(
-    r'\{\n\s+"slug":\s"(?P<slug>(?:[^"\\]|\\.)*)",\n\s+"file_path":\s"(?P<file_path>(?:[^"\\]|\\.)*)"\n\s+\}'
-)
-
-
-def collapse_vault_file_json(payload: str) -> str:
-    """Collapse pretty-printed `VaultFile` JSON objects to a single line."""
-
-    return _VAULT_FILE_JSON_BLOCK.sub(
-        r'{"slug": "\g<slug>", "file_path": "\g<file_path>"}',
-        payload,
-    )

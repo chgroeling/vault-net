@@ -5,10 +5,14 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict
+from io import StringIO
 from pathlib import Path
 
 import click
 import structlog
+from rich.console import Console
+from rich.table import Table
+from rich.text import Text
 
 from vault_net import (
     VaultRegistry,
@@ -18,7 +22,6 @@ from vault_net import (
 )
 from vault_net.logging import configure_debug_logging, get_console
 from vault_net.models import VaultGraph, VaultGraphMetadata
-from vault_net.utils import collapse_vault_file_json
 from vault_net.views import build_adjacency_list, build_layered_repr, build_vault_edge_list
 
 logger = structlog.get_logger(__name__)
@@ -61,6 +64,110 @@ def emit_json_output(payload: str, output: Path | None) -> None:
         output.write_text(f"{payload}\n", encoding="utf-8")
     except OSError as exc:
         raise click.ClickException(f"Could not write output file {output}: {exc}") from exc
+
+
+def emit_pretty_output(table: Table, output: Path | None) -> None:
+    """Emit rich table to stdout or a target file."""
+    if output is None:
+        Console().print(table)
+        return
+
+    try:
+        output_buffer = StringIO()
+        output_console = Console(file=output_buffer, force_terminal=False, color_system=None)
+        output_console.print(table)
+        rendered = output_buffer.getvalue()
+        output.write_text(rendered, encoding="utf-8")
+    except OSError as exc:
+        raise click.ClickException(f"Could not write output file {output}: {exc}") from exc
+
+
+def _slug_text(value: str) -> Text:
+    return Text(value, style="yellow")
+
+
+def _path_text(value: str) -> Text:
+    return Text(value, style="cyan")
+
+
+def _depth_text(depth: int) -> Text:
+    return Text(str(depth), style="green")
+
+
+def _render_edge_list_table(graph: VaultGraph, vault_registry: VaultRegistry) -> Table:
+    """Render source/target edge list as a rich table."""
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Source Slug")
+    table.add_column("Target Slug")
+    table.add_column("Source Path")
+    table.add_column("Target Path")
+
+    for source, target in build_vault_edge_list(graph, vault_registry):
+        table.add_row(
+            _slug_text(source.slug),
+            _slug_text(target.slug),
+            _path_text(source.file_path),
+            _path_text(target.file_path),
+        )
+
+    return table
+
+
+def _render_adjacency_list_table(graph: VaultGraph, vault_registry: VaultRegistry) -> Table:
+    """Render source note adjacency as a rich table."""
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Slug")
+    table.add_column("Path")
+    table.add_column("Targets")
+
+    for source_slug in sorted(graph.digraph.nodes()):
+        source_note = vault_registry.get_file(str(source_slug))
+        if source_note is None:
+            continue
+
+        target_slugs: list[str] = []
+        for target_slug in sorted(graph.digraph.successors(source_slug)):
+            if vault_registry.get_file(str(target_slug)) is None:
+                continue
+            target_slugs.append(str(target_slug))
+
+        table.add_row(
+            _slug_text(source_note.slug),
+            _path_text(source_note.file_path),
+            _slug_text(", ".join(target_slugs) if target_slugs else "-"),
+        )
+
+    return table
+
+
+def _render_layered_table(
+    source_slug: str, graph: VaultGraph, vault_registry: VaultRegistry
+) -> Table:
+    """Render layered note graph as a rich table."""
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Slug")
+    table.add_column("Depth")
+    table.add_column("Path")
+
+    layered = _serialize_layered_repr(source_slug, graph, vault_registry)
+    raw_layers = layered.get("layers", [])
+    if not isinstance(raw_layers, list):
+        return table
+
+    for entry in raw_layers:
+        if not isinstance(entry, dict):
+            continue
+        note = entry.get("note")
+        if not isinstance(note, dict):
+            continue
+        slug = note.get("slug")
+        path = note.get("file_path")
+        depth = entry.get("depth")
+        if not isinstance(slug, str) or not isinstance(path, str) or not isinstance(depth, int):
+            continue
+        table.add_row(_slug_text(slug), _depth_text(depth), _path_text(path))
+
+    return table
 
 
 @click.group()
@@ -141,16 +248,24 @@ def _serialize_layered_repr(
     "--output",
     type=click.Path(path_type=Path, dir_okay=False),
     default=None,
-    help="Write JSON output to file instead of stdout",
+    help="Write output to file instead of stdout",
 )
 @click.option("--debug", is_flag=True, help="Enable debug-level structured logging to stderr")
 @click.option("--verbose", is_flag=True, help="Enable verbose console output")
 @click.option(
-    "--format",
-    "fmt",
+    "--style",
+    "style",
     type=click.Choice(["edge_list", "adjacency_list", "layered"], case_sensitive=False),
     default="edge_list",
-    help="Output graph representation",
+    help="Graph representation style",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["pretty", "json"], case_sensitive=False),
+    default="pretty",
+    show_default=True,
+    help="Output format",
 )
 @click.option(
     "-e",
@@ -172,7 +287,8 @@ def note_graph(
     output: Path | None,
     debug: bool,
     verbose: bool,
-    fmt: str,
+    style: str,
+    output_format: str,
     extra_exclude_dir: tuple[str, ...],
     no_default_excludes: bool,
 ) -> int:
@@ -202,17 +318,22 @@ def note_graph(
         digraph=ego_graph,
     )
 
-    if fmt == "layered":
-        payload = json.dumps(
-            _serialize_layered_repr(slug, ego_vault_graph, vault_registry), indent=2
-        )
-    elif fmt == "adjacency_list":
-        payload = json.dumps(_serialize_adjacency_list(ego_vault_graph, vault_registry), indent=2)
+    payload_obj: object
+    if style == "layered":
+        payload_obj = _serialize_layered_repr(slug, ego_vault_graph, vault_registry)
+    elif style == "adjacency_list":
+        payload_obj = _serialize_adjacency_list(ego_vault_graph, vault_registry)
     else:
-        payload = json.dumps(_serialize_edge_list(ego_vault_graph, vault_registry), indent=2)
+        payload_obj = _serialize_edge_list(ego_vault_graph, vault_registry)
 
-    payload = collapse_vault_file_json(payload)
-    emit_json_output(payload, output)
+    if output_format == "json":
+        emit_json_output(json.dumps(payload_obj, indent=2), output)
+    elif style == "layered":
+        emit_pretty_output(_render_layered_table(slug, ego_vault_graph, vault_registry), output)
+    elif style == "adjacency_list":
+        emit_pretty_output(_render_adjacency_list_table(ego_vault_graph, vault_registry), output)
+    else:
+        emit_pretty_output(_render_edge_list_table(ego_vault_graph, vault_registry), output)
     console.print("Link tracing complete")
     logger.info("Link tracing complete")
     return 0
@@ -230,7 +351,7 @@ def note_graph(
     "--output",
     type=click.Path(path_type=Path, dir_okay=False),
     default=None,
-    help="Write JSON output to file instead of stdout",
+    help="Write output to file instead of stdout",
 )
 @click.option("--debug", is_flag=True, help="Enable debug-level structured logging to stderr")
 @click.option("--verbose", is_flag=True, help="Enable verbose console output")
@@ -266,14 +387,13 @@ def index_cmd(
         vault_root, extra_exclude_dir=extra_exclude_dir, no_default_excludes=no_default_excludes
     )
     payload = json.dumps(asdict(vault_index), indent=2, default=str)
-    payload = collapse_vault_file_json(payload)
     emit_json_output(payload, output)
     console.print("Vault index scan complete")
     logger.info("Vault index scan complete")
     return 0
 
 
-@main.command("edges")
+@main.command("graph")
 @click.option(
     "--vault-root",
     type=click.Path(path_type=Path),
@@ -285,16 +405,24 @@ def index_cmd(
     "--output",
     type=click.Path(path_type=Path, dir_okay=False),
     default=None,
-    help="Write JSON output to file instead of stdout",
+    help="Write output to file instead of stdout",
 )
 @click.option("--debug", is_flag=True, help="Enable debug-level structured logging to stderr")
 @click.option("--verbose", is_flag=True, help="Enable verbose console output")
 @click.option(
-    "--format",
-    "fmt",
+    "--style",
+    "style",
     type=click.Choice(["edge_list", "adjacency_list"], case_sensitive=False),
     default="edge_list",
-    help="Output graph representation",
+    help="Graph representation style",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["pretty", "json"], case_sensitive=False),
+    default="pretty",
+    show_default=True,
+    help="Output format",
 )
 @click.option(
     "-e",
@@ -309,12 +437,13 @@ def index_cmd(
     is_flag=True,
     help="Disable built-in default exclusions; use only --exclude-dir entries",
 )
-def edge_list(
+def graph_cmd(
     vault_root: Path | None,
     output: Path | None,
     debug: bool,
     verbose: bool,
-    fmt: str,
+    style: str,
+    output_format: str,
     extra_exclude_dir: tuple[str, ...],
     no_default_excludes: bool,
 ) -> int:
@@ -330,15 +459,20 @@ def edge_list(
     )
     vault_registry = VaultRegistry(vault_index)
 
-    if fmt == "adjacency_list":
-        vault_graph = build_vault_digraph(vault_index)
-        payload = json.dumps(_serialize_adjacency_list(vault_graph, vault_registry), indent=2)
-    else:
-        vault_graph = build_vault_digraph(vault_index)
-        payload = json.dumps(_serialize_edge_list(vault_graph, vault_registry), indent=2)
+    vault_graph = build_vault_digraph(vault_index)
 
-    payload = collapse_vault_file_json(payload)
-    emit_json_output(payload, output)
+    payload_obj: object
+    if style == "adjacency_list":
+        payload_obj = _serialize_adjacency_list(vault_graph, vault_registry)
+    else:
+        payload_obj = _serialize_edge_list(vault_graph, vault_registry)
+
+    if output_format == "json":
+        emit_json_output(json.dumps(payload_obj, indent=2), output)
+    elif style == "adjacency_list":
+        emit_pretty_output(_render_adjacency_list_table(vault_graph, vault_registry), output)
+    else:
+        emit_pretty_output(_render_edge_list_table(vault_graph, vault_registry), output)
     console.print("Vault edge list complete")
     logger.info("Vault edge list complete")
     return 0
