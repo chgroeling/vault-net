@@ -87,38 +87,6 @@ Prefix commands with `uv run`.
 - **Testing:** `pytest`
 - **Docs:** `mkdocs` + Material theme
 
-## Dependencies
-
-### matterify (>=0.4.0)
-Extracts YAML frontmatter from Markdown files. Used to read metadata from Obsidian notes and invoke a callback for custom data extraction (link parsing).
-
-**Public API:**
-- `scan_directory(path: Path, ..., callback=...) -> ScanResults` — Scan directory recursively for `.md`/`.markdown` files; supports `compute_hash`, `compute_stats`, `compute_frontmatter`, `callback` for custom per-file data, and `exclude` for directory filtering
-- `FileEntry` — Per-file result: `file_path`, `frontmatter` (dict), `status`, `error`, `stats` (FileStats), `file_hash`, `custom_data` (callback output)
-- `ScanMetadata` — Scan summary: `root`, `total_files`, `files_with_frontmatter`, `files_without_frontmatter`, `errors`, `scan_duration_seconds`, `avg_duration_per_file_ms`, `throughput_files_per_second`
-- `ScanResults` — Holds `metadata` (ScanMetadata) and `files` (list[FileEntry])
-- `BLACKLIST` (from `matterify.constants`) — Default exclusion tuple
-
-**Default exclusions (BLACKLIST):** `.git`, `.obsidian`, `__pycache__`, `.venv`, `venv`, `node_modules`, `.mypy_cache`, `.pytest_cache`, `.ruff_cache`
-
-### obsilink (>=0.3.1)
-Extracts Obsidian-style wikilinks, Markdown links, and plain URLs from text. Used to parse link targets from note content.
-
-**Public API:**
-- `extract_links(source: str | TextReadable) -> list[Link]` — Extract links from `str` or text-readable objects (with `.read()`), returns links in encounter order, preserves duplicates
-- `Link` — Frozen dataclass: `type` (LinkType), `target` (str), `alias` (str | None), `heading` (str | None), `blockid` (str | None). Convenience properties: `is_url` (bool), `is_file` (bool), `as_path` (Path)
-- `LinkType` — Enum: `WIKILINK`, `WIKILINK_EMBED`, `MARKDOWN_LINK`, `MARKDOWN_EMBED`, `PLAIN_URL`
-- `__version__` — Exported package version string
-
-**Behavior notes (from docstrings):**
-- `extract_links()` supports raw `str` input and text-readable objects whose `.read()` returns `str`
-- Links are returned in encounter order, duplicates are preserved, malformed/partial syntax is silently ignored
-- Embed targets (`![[...]]` and `![...](...)`) are included by default
-- Fragment parsing is normalized: `target` excludes `#heading`/`^blockid`, which are exposed as `heading` and `blockid`
-- `extract_links()` raises `TypeError` for unsupported source types or non-`str` `.read()` results
-- `Link.as_path` raises `ValueError` when the target is a URL
-
-
 ## Command line interface
 
 **Subcommand `note-graph`:** Trace links for a single note.
