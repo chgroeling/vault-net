@@ -97,9 +97,9 @@ def _depth_text(depth: int) -> Text:
 
 
 def _render_edge_list_table(graph: VaultGraph, vault_registry: VaultRegistry) -> Table:
-    table = Table(show_header=True, header_style="bold")
-    table.add_column("Source Slug")
-    table.add_column("Target Slug")
+    table = Table(show_header=True, header_style="bold", box=None)
+    table.add_column("Src Slug")
+    table.add_column("Tgt Slug")
     table.add_column("Source Path")
     table.add_column("Target Path")
 
@@ -115,7 +115,7 @@ def _render_edge_list_table(graph: VaultGraph, vault_registry: VaultRegistry) ->
 
 
 def _render_adjacency_list_table(graph: VaultGraph, vault_registry: VaultRegistry) -> Table:
-    table = Table(show_header=True, header_style="bold")
+    table = Table(show_header=True, header_style="bold", box=None)
     table.add_column("Slug")
     table.add_column("Path")
     table.add_column("Targets")
@@ -143,7 +143,7 @@ def _render_adjacency_list_table(graph: VaultGraph, vault_registry: VaultRegistr
 def _render_layered_table(
     source_slug: str, graph: VaultGraph, vault_registry: VaultRegistry
 ) -> Table:
-    table = Table(show_header=True, header_style="bold")
+    table = Table(show_header=True, header_style="bold", box=None)
     table.add_column("Slug")
     table.add_column("Depth")
     table.add_column("Path")

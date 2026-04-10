@@ -232,8 +232,8 @@ def test_graph_defaults_to_pretty_output(tmp_path: Path) -> None:
     result = runner.invoke(main, ["graph", "--vault-root", str(vault)])
 
     assert result.exit_code == 0
-    assert "Source Slug" in result.output
-    assert "Target Slug" in result.output
+    assert "Src Slug" in result.output
+    assert "Tgt Slug" in result.output
     assert "home.md" in result.output
 
 

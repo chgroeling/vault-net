@@ -116,7 +116,7 @@ tests/
 
 ## Rules
 
-- Use skill `python-code-style` and `python-design-patterns` before substantial Python refactors.
+- Use skill `python-code-style` and `python-design-patterns` before adding/modifying python code.
 - Use skill `python-testing-patterns` before adding/modifying pytest suites.
 - Keep code ASCII by default.
 - Prefer explicit, simple composition over meta-framework abstractions.
