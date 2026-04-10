@@ -55,30 +55,6 @@ strict = true
 
 Use `ruff` as an all-in-one linter and formatter. It replaces flake8, isort, and black with a single fast tool.
 
-```toml
-# pyproject.toml
-[tool.ruff]
-line-length = 120
-target-version = "py312"  # Adjust based on your project's minimum Python version
-
-[tool.ruff.lint]
-select = [
-    "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings
-    "F",    # pyflakes
-    "I",    # isort
-    "B",    # flake8-bugbear
-    "C4",   # flake8-comprehensions
-    "UP",   # pyupgrade
-    "SIM",  # flake8-simplify
-]
-ignore = ["E501"]  # Line length handled by formatter
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-```
-
 Run with:
 
 ```bash
@@ -103,14 +79,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
-```
-
-Alternative: Use `pyright` for faster checking.
-
-```toml
-[tool.pyright]
-pythonVersion = "3.12"
-typeCheckingMode = "strict"
 ```
 
 ### Pattern 3: Naming Conventions
