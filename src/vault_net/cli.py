@@ -6,7 +6,6 @@ import json
 import os
 from dataclasses import asdict
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import click
 import structlog
@@ -18,11 +17,9 @@ from vault_net import (
     scan_vault,
 )
 from vault_net.logging import configure_debug_logging, get_console
-from vault_net.transforms import build_vault_edge_list, to_layered
+from vault_net.models import VaultGraph, VaultGraphMetadata
+from vault_net.transforms import build_adjacency_list, build_layered_repr, build_vault_edge_list
 from vault_net.utils import collapse_vault_file_json
-
-if TYPE_CHECKING:
-    import networkx as nx
 
 logger = structlog.get_logger(__name__)
 
@@ -72,40 +69,28 @@ def main() -> None:
 
 
 def _serialize_edge_list(
-    graph: nx.DiGraph[str],
+    graph: VaultGraph,
     vault_registry: VaultRegistry,
-) -> list[list[object]]:
-    """Serialize graph edges to lightweight `VaultFile` pairs."""
-    payload: list[list[object]] = []
-    for source_slug, target_slug in sorted(graph.edges()):
-        source_file = vault_registry.get_file(str(source_slug))
-        target_file = vault_registry.get_file(str(target_slug))
-        if source_file is None or target_file is None:
-            continue
-        payload.append([asdict(source_file.to_file()), asdict(target_file.to_file())])
-    return payload
+) -> dict[str, object]:
+    """Serialize graph edges to an edge_list payload."""
+    edges = build_vault_edge_list(graph, vault_registry)
+    return {
+        "vault_root": str(graph.vault_root),
+        "metadata": {"edge_count": len(edges)},
+        "edges": [[asdict(source), asdict(target)] for source, target in edges],
+    }
 
 
 def _serialize_adjacency_list(
-    graph: nx.DiGraph[str],
+    graph: VaultGraph,
     vault_registry: VaultRegistry,
 ) -> dict[str, list[object]]:
     """Serialize graph adjacency as source slug -> target VaultFile list."""
-    payload: dict[str, list[object]] = {}
-    for source_slug in sorted(graph.nodes()):
-        source_note = vault_registry.get_file(str(source_slug))
-        if source_note is None:
-            continue
-
-        targets: list[object] = []
-        for target_slug in sorted(graph.successors(source_slug)):
-            target_note = vault_registry.get_file(str(target_slug))
-            if target_note is None:
-                continue
-            targets.append(asdict(target_note.to_file()))
-        payload[source_note.slug] = targets
-
-    return payload
+    adjacency = build_adjacency_list(graph, vault_registry)
+    return {
+        source_slug: [asdict(target_file) for target_file in target_files]
+        for source_slug, target_files in adjacency.items()
+    }
 
 
 @main.command("note-graph")
@@ -176,19 +161,25 @@ def note_graph(
         vault_root, extra_exclude_dir=extra_exclude_dir, no_default_excludes=no_default_excludes
     )
     vault_registry = VaultRegistry(vault_index)
-    vault_digraph = build_vault_digraph(vault_index=vault_index)
+    vault_graph = build_vault_digraph(vault_index=vault_index)
 
     try:
-        ego_graph = build_note_ego_graph(slug, vault_digraph, depth=depth)
+        ego_graph = build_note_ego_graph(slug, vault_graph.digraph, depth=depth)
     except KeyError as exc:
         raise click.UsageError(f"Unknown slug '{slug}'.") from exc
 
+    ego_vault_graph = VaultGraph(
+        vault_root=vault_root,
+        metadata=VaultGraphMetadata(edge_count=ego_graph.number_of_edges()),
+        digraph=ego_graph,
+    )
+
     if fmt == "layered":
-        payload = json.dumps(asdict(to_layered(slug, ego_graph, vault_root)), indent=2)
+        payload = json.dumps(asdict(build_layered_repr(slug, ego_vault_graph)), indent=2)
     elif fmt == "adjacency_list":
-        payload = json.dumps(_serialize_adjacency_list(ego_graph, vault_registry), indent=2)
+        payload = json.dumps(_serialize_adjacency_list(ego_vault_graph, vault_registry), indent=2)
     else:
-        payload = json.dumps(_serialize_edge_list(ego_graph, vault_registry), indent=2)
+        payload = json.dumps(_serialize_edge_list(ego_vault_graph, vault_registry), indent=2)
 
     payload = collapse_vault_file_json(payload)
     emit_json_output(payload, output)
@@ -310,11 +301,11 @@ def edge_list(
     vault_registry = VaultRegistry(vault_index)
 
     if fmt == "adjacency_list":
-        digraph = build_vault_digraph(vault_index)
-        payload = json.dumps(_serialize_adjacency_list(digraph, vault_registry), indent=2)
+        vault_graph = build_vault_digraph(vault_index)
+        payload = json.dumps(_serialize_adjacency_list(vault_graph, vault_registry), indent=2)
     else:
-        edges = build_vault_edge_list(vault_index, vault_registry)
-        payload = json.dumps([[asdict(file) for file in edge] for edge in edges], indent=2)
+        vault_graph = build_vault_digraph(vault_index)
+        payload = json.dumps(_serialize_edge_list(vault_graph, vault_registry), indent=2)
 
     payload = collapse_vault_file_json(payload)
     emit_json_output(payload, output)

@@ -39,7 +39,9 @@ def test_note_graph_uses_slug_argument(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload == [
+    assert payload["vault_root"] == str(vault)
+    assert payload["metadata"]["edge_count"] == 1
+    assert payload["edges"] == [
         [{"slug": "home.md", "file_path": "home.md"}, {"slug": "about.md", "file_path": "about.md"}]
     ]
 
@@ -106,9 +108,10 @@ def test_edges_command_default_edge_list(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert isinstance(payload, list)
-    assert payload
-    assert "slug" in payload[0][0]
+    assert payload["vault_root"] == str(vault)
+    assert payload["metadata"]["edge_count"] >= 1
+    assert payload["edges"]
+    assert "slug" in payload["edges"][0][0]
 
 
 def test_edges_command_format_adjacency_list(tmp_path: Path) -> None:
@@ -155,7 +158,9 @@ def test_note_graph_output_writes_json_file(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert result.output == ""
     payload = json.loads(output.read_text(encoding="utf-8"))
-    assert payload == []
+    assert payload["vault_root"] == str(vault)
+    assert payload["metadata"]["edge_count"] == 0
+    assert payload["edges"] == []
 
 
 def test_cli_uses_env_var(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

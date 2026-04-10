@@ -9,6 +9,7 @@ import networkx as nx
 import structlog
 
 from vault_net.consts import _POSSIBLE_EXTENSIONS
+from vault_net.models import VaultGraph, VaultGraphMetadata
 from vault_net.utils import _normalize_lookup_key
 
 if TYPE_CHECKING:
@@ -106,9 +107,37 @@ def _build_vault_slug_edge_list(vault_index: VaultIndex) -> list[tuple[str, str]
     return sorted(edges)
 
 
-def build_vault_digraph(vault_index: VaultIndex) -> nx.DiGraph[str]:
-    """Build a directed graph whose nodes are note slugs."""
+def build_vault_digraph(vault_index: VaultIndex) -> VaultGraph:
+    """Build a resolved vault graph whose nodes are note slugs."""
     graph: nx.DiGraph[str] = nx.DiGraph()
-    graph.add_edges_from(_build_vault_slug_edge_list(vault_index))
+    slug_edges = _build_vault_slug_edge_list(vault_index)
+    graph.add_edges_from(slug_edges)
     graph.add_nodes_from(file.slug for file in vault_index.files)
-    return graph
+
+    return VaultGraph(
+        vault_root=vault_index.vault_root,
+        metadata=VaultGraphMetadata(edge_count=len(slug_edges)),
+        digraph=graph,
+    )
+
+
+def build_note_ego_graph(
+    source_slug: str,
+    vault_digraph: nx.DiGraph[str],
+    *,
+    depth: int = 1,
+) -> nx.DiGraph[str]:
+    """Return the directed ego graph around `source_slug`."""
+    if depth < 0:
+        raise ValueError(f"depth must be >= 0, got {depth}")
+    if source_slug not in vault_digraph:
+        raise KeyError(source_slug)
+
+    ego = nx.ego_graph(vault_digraph, source_slug, radius=depth, undirected=True)
+    return nx.DiGraph(ego)
+
+
+__all__ = [
+    "build_note_ego_graph",
+    "build_vault_digraph",
+]

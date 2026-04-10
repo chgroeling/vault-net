@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pathlib import Path
 
+    import networkx as nx
+
 
 @dataclass(frozen=True, slots=True)
 class VaultIndexMetadata:
@@ -34,6 +36,17 @@ class VaultIndexMetadata:
     scan_duration_seconds: float
     avg_duration_per_file_ms: float
     throughput_files_per_second: float
+
+
+@dataclass(frozen=True, slots=True)
+class VaultGraphMetadata:
+    """Metadata summary for a vault graph operation.
+
+    Attributes:
+        edge_count: Number of resolved graph edges.
+    """
+
+    edge_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,7 +83,7 @@ class LayerEntry:
 class VaultLayered:
     """Note graph reshaped into a flat BFS layer list.
 
-    Produced by `transforms.to_layered` from an ego graph around a source
+    Produced by `transforms.build_layered_repr` from an ego graph around a source
     slug. A note appears only once, at its shallowest reachable depth.
 
     Attributes:
@@ -84,6 +97,21 @@ class VaultLayered:
     vault_root: str
     total_files: int
     layers: list[LayerEntry]
+
+
+@dataclass(frozen=True, slots=True)
+class VaultGraph:
+    """Resolved vault graph representation.
+
+    Attributes:
+        vault_root: Root directory of the vault as a Path.
+        metadata: Summary metadata about the graph.
+        digraph: Resolved directed graph whose nodes are note slugs.
+    """
+
+    vault_root: Path
+    metadata: VaultGraphMetadata
+    digraph: nx.DiGraph[str]
 
 
 @dataclass(frozen=True, slots=True)
