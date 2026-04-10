@@ -184,7 +184,7 @@ class VaultFile:
     error: str | None
     stats: VaultFileStats
     file_hash: str
-    links: list[VaultLink] | None
+    links: list[VaultLink]
 
 
 @dataclass(frozen=True, slots=True)

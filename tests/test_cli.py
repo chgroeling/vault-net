@@ -429,6 +429,35 @@ def test_vault_command_requires_vault_root() -> None:
     assert "No vault root directory provided" in result.output
 
 
+def test_edges_command_outputs_slug_pairs(tmp_path: Path) -> None:
+    """edges subcommand outputs deduplicated resolved slug pairs."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "home.md").write_text("[[about]]\n[[about]]\n[[missing]]\n", encoding="utf-8")
+    (vault / "about.md").write_text("", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["edges", "--vault-root", str(vault)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload == [["home.md", "about.md"]]
+
+
+def test_edges_command_skips_self_loop(tmp_path: Path) -> None:
+    """edges subcommand skips resolved self-loop edges."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "home.md").write_text("[[home]]\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["edges", "--vault-root", str(vault)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload == []
+
+
 def test_note_command_output_writes_json_file(tmp_path: Path) -> None:
     """-o/--output writes note JSON payload to a file."""
     note = tmp_path / "note.md"

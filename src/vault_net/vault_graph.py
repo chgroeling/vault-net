@@ -15,7 +15,7 @@ from vault_net.models import (
     VaultIndex,
     VaultLink,
 )
-from vault_net.utils import _extract_file_links, _normalize_lookup_key, _path_for_response
+from vault_net.utils import _normalize_lookup_key, _path_for_response
 
 logger = structlog.get_logger(__name__)
 
@@ -99,7 +99,7 @@ def _resolve_extracted_link(
 def _build_vault_graph(
     vault_root: Path,
     file_paths: list[str],
-    file_links: list[list[VaultLink] | None],
+    file_links: list[list[VaultLink]],
 ) -> VaultGraph:
     """Resolve all file links for every scanned note in a vault."""
     start = time.monotonic()
@@ -117,29 +117,23 @@ def _build_vault_graph(
     resolved_vault = vault_root.resolve()
     edges: dict[str, list[LinkEdge]] = {}
 
-    for fp, links in zip(file_paths, file_links, strict=True):
+    for fp, extracted_links in zip(file_paths, file_links, strict=True):
         source_note_path = (resolved_vault / Path(fp)).resolve()
         source_note = _path_for_response(source_note_path, resolved_vault)
-        extracted_links = (
-            links
-            if links is not None
-            else _extract_file_links(source_note_path.read_text(encoding="utf-8"))
-        )
+        edge_list: list[LinkEdge] = []
 
-        outgoing_links: list[LinkEdge] = []
-
-        for extracted_link in extracted_links:
+        for link in extracted_links:
             edge, _ = _resolve_extracted_link(
-                extracted_link,
+                link,
                 resolved_vault,
                 name_to_file=name_to_file,
                 stem_to_file=stem_to_file,
                 relative_path_to_file=relative_path_to_file,
             )
-            outgoing_links.append(edge)
+            edge_list.append(edge)
 
-        if outgoing_links:
-            edges[source_note] = outgoing_links
+        if edge_list:
+            edges[source_note] = edge_list
 
     metadata = VaultGraphMetadata(
         total_files=len(file_paths),

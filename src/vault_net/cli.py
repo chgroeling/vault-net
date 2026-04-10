@@ -10,7 +10,7 @@ from pathlib import Path
 import click
 import structlog
 
-from vault_net import build_note_graph, build_vault_graph, scan_vault
+from vault_net import build_note_graph, build_vault_edge_list, build_vault_graph, scan_vault
 from vault_net.logging import configure_debug_logging, get_console
 from vault_net.transforms import to_layered
 
@@ -248,6 +248,61 @@ def vault_graph(
     emit_json_output(payload, output)
     console.print("Vault link tracing complete")
     logger.info("Vault link tracing complete")
+    return 0
+
+
+@main.command("edges")
+@click.option(
+    "--vault-root",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Vault root directory (overrides VAULT_ROOT env and .vault file)",
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(path_type=Path, dir_okay=False),
+    default=None,
+    help="Write JSON output to file instead of stdout",
+)
+@click.option("--debug", is_flag=True, help="Enable debug-level structured logging to stderr")
+@click.option("--verbose", is_flag=True, help="Enable verbose console output")
+@click.option(
+    "-e",
+    "--exclude-dir",
+    "extra_exclude_dir",
+    multiple=True,
+    metavar="DIR",
+    help="Additional directory name to exclude from traversal (repeatable)",
+)
+@click.option(
+    "--no-default-excludes",
+    is_flag=True,
+    help="Disable built-in default exclusions; use only --exclude-dir entries",
+)
+def edge_list(
+    vault_root: Path | None,
+    output: Path | None,
+    debug: bool,
+    verbose: bool,
+    extra_exclude_dir: tuple[str, ...],
+    no_default_excludes: bool,
+) -> int:
+    """Output a resolved slug edge list for the whole vault."""
+    configure_debug_logging(debug)
+    console = get_console(verbose)
+
+    logger.debug("Starting vault edge list", vault_root=str(vault_root) if vault_root else None)
+    vault_root = resolve_vault_root(vault_root)
+    logger.info("Building vault edge list", vault_root=str(vault_root))
+    vault_index = scan_vault(
+        vault_root, extra_exclude_dir=extra_exclude_dir, no_default_excludes=no_default_excludes
+    )
+    edges = build_vault_edge_list(vault_index)
+    payload = json.dumps(edges, indent=2)
+    emit_json_output(payload, output)
+    console.print("Vault edge list complete")
+    logger.info("Vault edge list complete")
     return 0
 
 

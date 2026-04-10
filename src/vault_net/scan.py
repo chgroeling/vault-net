@@ -17,7 +17,7 @@ from vault_net.models import VaultFile, VaultFileStats, VaultIndex, VaultIndexMe
 logger = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
-    from matterify.models import FileStats, ScanMetadata, ScanResults
+    from matterify.models import FileStats, ScanResults
 
 
 def _generate_slug(filename: str, slug_counts: dict[str, int]) -> str:
@@ -68,7 +68,7 @@ def _convert_scan_to_index(
         VaultIndex with converted file entries and metadata.
     """
     # Convert matterify ScanMetadata to VaultIndexMetadata
-    meta = cast("ScanMetadata", scan_result.metadata)
+    meta = scan_result.metadata
     # These are guaranteed non-None because compute_frontmatter=True
     files_with_frontmatter = cast("int", meta.files_with_frontmatter)
     files_without_frontmatter = cast("int", meta.files_without_frontmatter)
