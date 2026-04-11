@@ -326,8 +326,6 @@ def note_graph(
             extra_exclude_dir=extra_exclude_dir,
             no_default_excludes=no_default_excludes,
         )
-    except InputError as exc:
-        raise click.UsageError(str(exc)) from exc
     except KeyError as exc:
         raise click.UsageError(f"Unknown slug '{note_input}'.") from exc
 
@@ -347,7 +345,8 @@ def note_graph(
         emit_json_output(json.dumps(payload_obj, indent=2), output)
     elif style == "layered":
         emit_pretty_output(
-            _render_layered_table(slug, neighborhood_graph, vault_registry, basename), output
+            _render_layered_table(slug, neighborhood_graph, vault_registry, basename),
+            output,
         )
     elif style == "adjacency_list":
         emit_pretty_output(
