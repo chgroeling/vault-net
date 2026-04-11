@@ -105,10 +105,10 @@ def _render_edge_list_table(
     graph: VaultGraph, vault_registry: VaultRegistry, use_basename: bool = False
 ) -> Table:
     table = Table(show_header=True, header_style="bold", box=None)
-    table.add_column("Src Slug")
-    table.add_column("Tgt Slug")
-    table.add_column("Source Name" if use_basename else "Source Path")
-    table.add_column("Target Name" if use_basename else "Target Path")
+    table.add_column("Src Slug", no_wrap=True, max_width=8)
+    table.add_column("Tgt Slug", no_wrap=True, max_width=8)
+    table.add_column("Source Name" if use_basename else "Source Path", no_wrap=True, max_width=50)
+    table.add_column("Target Name" if use_basename else "Target Path", no_wrap=True, max_width=50)
 
     for source, target in build_vault_edge_list(graph, vault_registry):
         table.add_row(
@@ -125,9 +125,9 @@ def _render_adjacency_list_table(
     graph: VaultGraph, vault_registry: VaultRegistry, use_basename: bool = False
 ) -> Table:
     table = Table(show_header=True, header_style="bold", box=None)
-    table.add_column("Slug")
-    table.add_column("Name" if use_basename else "Path")
-    table.add_column("Targets")
+    table.add_column("Slug", no_wrap=True, max_width=8)
+    table.add_column("Name" if use_basename else "Path", no_wrap=True, max_width=50)
+    table.add_column("Targets", no_wrap=True, max_width=30)
 
     for source_slug in sorted(graph.digraph.nodes()):
         source_note = vault_registry.get_file(str(source_slug))
@@ -154,9 +154,9 @@ def _render_layered_table(
     source_slug: str, graph: VaultGraph, vault_registry: VaultRegistry, use_basename: bool = False
 ) -> Table:
     table = Table(show_header=True, header_style="bold", box=None)
-    table.add_column("Slug")
-    table.add_column("Depth")
-    table.add_column("Name" if use_basename else "Path")
+    table.add_column("Slug", no_wrap=True, max_width=8)
+    table.add_column("Depth", no_wrap=True, max_width=6)
+    table.add_column("Name" if use_basename else "Path", no_wrap=True, max_width=50)
 
     layered = _serialize_layered_repr(source_slug, graph, vault_registry)
     raw_layers = layered.get("layers", [])
