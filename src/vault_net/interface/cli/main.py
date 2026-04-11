@@ -20,7 +20,6 @@ from vault_net.application import (
     scan_vault,
     trace_note_links,
 )
-from vault_net.domain.models import InputError
 from vault_net.domain.services.vault_registry import VaultRegistry
 from vault_net.interface.formatters.views import (
     build_adjacency_list,
