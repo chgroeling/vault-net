@@ -62,7 +62,7 @@ def test_get_slug_by_path_returns_slug_for_existing_file(
     """get_slug_by_path returns slug when file_path matches."""
     _, registry = simple_vault
     result = registry.get_slug_by_path("home.md")
-    assert result == "home.md"
+    assert result == "home.md-"
 
 
 def test_get_slug_by_path_returns_none_for_missing_file(
@@ -86,7 +86,7 @@ def test_resolve_to_slug_by_direct_slug(simple_vault: tuple[Path, VaultRegistry]
     """resolve_to_slug returns slug when input is a direct slug match."""
     _, registry = simple_vault
     result = registry.resolve_to_slug("home.md", Path("/fake/vault"))
-    assert result == "home.md"
+    assert result == "home.md-"
 
 
 def test_resolve_to_slug_by_relative_path(simple_vault: tuple[Path, VaultRegistry]) -> None:

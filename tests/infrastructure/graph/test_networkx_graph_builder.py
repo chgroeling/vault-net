@@ -102,9 +102,11 @@ def test_build_neighborhood_graph_rejects_negative_depth(tmp_path: Path) -> None
 
     scanner = MatterifyVaultScanner()
     graph_builder = NetworkXGraphBuilder()
-    graph = graph_builder.build_full_graph(scanner.scan(vault_root))
+    vault_index = scanner.scan(vault_root)
+    graph = graph_builder.build_full_graph(vault_index)
+    a_slug = _slug_for(vault_index, "a.md")
     with pytest.raises(ValueError, match="depth must be >= 0"):
-        graph_builder.build_neighborhood_graph("a.md", graph, depth=-1)
+        graph_builder.build_neighborhood_graph(a_slug, graph, depth=-1)
 
 
 def test_build_neighborhood_graph_requires_known_slug(tmp_path: Path) -> None:
@@ -117,7 +119,7 @@ def test_build_neighborhood_graph_requires_known_slug(tmp_path: Path) -> None:
     graph_builder = NetworkXGraphBuilder()
     graph = graph_builder.build_full_graph(scanner.scan(vault_root))
     with pytest.raises(KeyError):
-        graph_builder.build_neighborhood_graph("missing.md", graph, depth=1)
+        graph_builder.build_neighborhood_graph("missing----", graph, depth=1)
 
 
 def test_build_neighborhood_graph_depth_zero_returns_source_only(tmp_path: Path) -> None:
@@ -129,10 +131,12 @@ def test_build_neighborhood_graph_depth_zero_returns_source_only(tmp_path: Path)
 
     scanner = MatterifyVaultScanner()
     graph_builder = NetworkXGraphBuilder()
-    graph = graph_builder.build_full_graph(scanner.scan(vault_root))
-    ego = graph_builder.build_neighborhood_graph("a.md", graph, depth=0).digraph
+    vault_index = scanner.scan(vault_root)
+    graph = graph_builder.build_full_graph(vault_index)
+    a_slug = _slug_for(vault_index, "a.md")
+    ego = graph_builder.build_neighborhood_graph(a_slug, graph, depth=0).digraph
 
-    assert sorted(ego.nodes()) == ["a.md"]
+    assert sorted(ego.nodes()) == [a_slug]
     assert list(ego.edges()) == []
 
 
@@ -146,8 +150,12 @@ def test_build_neighborhood_graph_uses_undirected_neighborhood(tmp_path: Path) -
 
     scanner = MatterifyVaultScanner()
     graph_builder = NetworkXGraphBuilder()
-    graph = graph_builder.build_full_graph(scanner.scan(vault_root))
-    ego = graph_builder.build_neighborhood_graph("a.md", graph, depth=1).digraph
+    vault_index = scanner.scan(vault_root)
+    graph = graph_builder.build_full_graph(vault_index)
+    a_slug = _slug_for(vault_index, "a.md")
+    b_slug = _slug_for(vault_index, "b.md")
+    c_slug = _slug_for(vault_index, "c.md")
+    ego = graph_builder.build_neighborhood_graph(a_slug, graph, depth=1).digraph
 
-    assert sorted(ego.nodes()) == ["a.md", "b.md", "c.md"]
-    assert sorted(ego.edges()) == [("a.md", "b.md"), ("c.md", "a.md")]
+    assert sorted(ego.nodes()) == [a_slug, b_slug, c_slug]
+    assert sorted(ego.edges()) == [(a_slug, b_slug), (c_slug, a_slug)]

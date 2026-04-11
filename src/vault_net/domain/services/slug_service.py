@@ -18,4 +18,5 @@ def generate_slug(filename: str, slug_counts: dict[str, int]) -> str:
         count += 1
     slug_counts[slug] = 0
     slug_counts[base_slug] = count
+    slug = slug.ljust(SLUG_LENGTH, "-")
     return slug

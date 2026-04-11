@@ -112,8 +112,8 @@ def _render_edge_list_table(
     graph: VaultGraph, vault_registry: VaultRegistry, use_basename: bool = False
 ) -> Table:
     table = Table(show_header=True, header_style="bold", box=None)
-    table.add_column("Src Slug", no_wrap=True, max_width=8)
-    table.add_column("Tgt Slug", no_wrap=True, max_width=8)
+    table.add_column("Src Slug", no_wrap=True, min_width=8)
+    table.add_column("Tgt Slug", no_wrap=True, min_width=8)
     table.add_column("Source Name" if use_basename else "Source Path", no_wrap=True, max_width=50)
     table.add_column("Target Name" if use_basename else "Target Path", no_wrap=True, max_width=50)
 
@@ -132,7 +132,7 @@ def _render_adjacency_list_table(
     graph: VaultGraph, vault_registry: VaultRegistry, use_basename: bool = False
 ) -> Table:
     table = Table(show_header=True, header_style="bold", box=None)
-    table.add_column("Slug", no_wrap=True, max_width=8)
+    table.add_column("Slug", no_wrap=True, min_width=8)
     table.add_column("Name" if use_basename else "Path", no_wrap=True, max_width=50)
     table.add_column("Targets", no_wrap=True, max_width=30)
 
@@ -161,7 +161,7 @@ def _render_layered_table(
     source_slug: str, graph: VaultGraph, vault_registry: VaultRegistry, use_basename: bool = False
 ) -> Table:
     table = Table(show_header=True, header_style="bold", box=None)
-    table.add_column("Slug", no_wrap=True, max_width=8)
+    table.add_column("Slug", no_wrap=True, min_width=8)
     table.add_column("Depth", no_wrap=True, max_width=6)
     table.add_column("Name" if use_basename else "Path", no_wrap=True, max_width=50)
 

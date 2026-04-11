@@ -45,7 +45,10 @@ def test_note_graph_uses_slug_argument(tmp_path: Path) -> None:
     assert payload["vault_root"] == str(vault)
     assert payload["metadata"]["edge_count"] == 1
     assert payload["edges"] == [
-        [{"slug": "home.md", "file_path": "home.md"}, {"slug": "about.md", "file_path": "about.md"}]
+        [
+            {"slug": "home.md-", "file_path": "home.md"},
+            {"slug": "about.md", "file_path": "about.md"},
+        ]
     ]
 
 
@@ -86,7 +89,7 @@ def test_note_graph_style_adjacency_list(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["home.md"] == [{"slug": "about.md", "file_path": "about.md"}]
+    assert payload["home.md-"] == [{"slug": "about.md", "file_path": "about.md"}]
     assert payload["about.md"] == []
 
 
@@ -114,11 +117,11 @@ def test_note_graph_style_layered(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["source_note"] == "home.md"
+    assert payload["source_note"] == "home.md-"
     assert payload["total_files"] == 2
     assert payload["layers"][0] == {
         "depth": 0,
-        "note": {"slug": "home.md", "file_path": "home.md"},
+        "note": {"slug": "home.md-", "file_path": "home.md"},
     }
 
 
@@ -161,7 +164,7 @@ def test_graph_command_style_adjacency_list(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["home.md"] == [{"slug": "about.md", "file_path": "about.md"}]
+    assert payload["home.md-"] == [{"slug": "about.md", "file_path": "about.md"}]
     assert payload["about.md"] == []
 
 

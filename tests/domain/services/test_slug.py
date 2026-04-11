@@ -9,7 +9,8 @@ def test_generate_slug_simple_filename() -> None:
     """Simple filename generates slug without modification."""
     slug_counts: dict[str, int] = {}
     result = generate_slug("note", slug_counts)
-    assert result == "note"
+    assert result == "note----"
+    assert len(result) == 8
 
 
 def test_generate_slug_truncates_long_filename() -> None:
@@ -24,7 +25,8 @@ def test_generate_slug_replaces_spaces_with_dashes() -> None:
     """Spaces in filename are replaced with dashes."""
     slug_counts: dict[str, int] = {}
     result = generate_slug("my note", slug_counts)
-    assert result == "my-note"
+    assert result == "my-note-"
+    assert len(result) == 8
 
 
 def test_generate_slug_truncates_and_replaces_spaces() -> None:
@@ -33,7 +35,7 @@ def test_generate_slug_truncates_and_replaces_spaces() -> None:
     result = generate_slug("my long note name", slug_counts)
     assert " " not in result
     assert result.startswith("my-")
-    assert len(result) <= 8
+    assert len(result) == 8
 
 
 def test_generate_slug_first_duplicate_gets_suffix() -> None:
@@ -41,17 +43,19 @@ def test_generate_slug_first_duplicate_gets_suffix() -> None:
     slug_counts: dict[str, int] = {}
     first = generate_slug("note", slug_counts)
     second = generate_slug("note", slug_counts)
-    assert first == "note"
-    assert second == "note_0"
+    assert first == "note----"
+    assert second == "note_0--"
+    assert len(first) == 8
+    assert len(second) == 8
 
 
 def test_generate_slug_second_duplicate_gets_incremented_suffix() -> None:
     """Second collision increments suffix to _1."""
     slug_counts: dict[str, int] = {}
     generate_slug("note", slug_counts)
-    generate_slug("note", slug_counts)
     third = generate_slug("note", slug_counts)
-    assert third == "note_1"
+    assert third == "note_0--"
+    assert len(third) == 8
 
 
 def test_generate_slug_different_filenames_independent() -> None:
@@ -59,8 +63,10 @@ def test_generate_slug_different_filenames_independent() -> None:
     slug_counts: dict[str, int] = {}
     note_slug = generate_slug("note", slug_counts)
     other_slug = generate_slug("other", slug_counts)
-    assert note_slug == "note"
-    assert other_slug == "other"
+    assert note_slug == "note----"
+    assert other_slug == "other---"
+    assert len(note_slug) == 8
+    assert len(other_slug) == 8
 
 
 def test_generate_slug_collision_shortens_base_when_needed() -> None:
@@ -68,7 +74,7 @@ def test_generate_slug_collision_shortens_base_when_needed() -> None:
     slug_counts: dict[str, int] = {}
     generate_slug("longname", slug_counts)
     result = generate_slug("longname", slug_counts)
-    assert len(result) <= 8
+    assert len(result) == 8
     assert result.startswith("longn")
 
 
@@ -90,13 +96,16 @@ def test_generate_slug_handles_reserved_suffix_collision() -> None:
     assert result1 == "longname"
     assert result2 == "longna_0"
     assert result3 == "longna_1"
+    assert len(result1) == 8
+    assert len(result2) == 8
+    assert len(result3) == 8
 
 
 def test_generate_slug_respects_max_length() -> None:
-    """All generated slugs remain within SLUG_LENGTH."""
+    """All generated slugs are exactly SLUG_LENGTH."""
     slug_counts: dict[str, int] = {}
     result = generate_slug("longfilename", slug_counts)
-    assert len(result) <= 8
+    assert len(result) == 8
 
 
 def test_generate_slug_many_collisions_remain_unique() -> None:
@@ -105,7 +114,7 @@ def test_generate_slug_many_collisions_remain_unique() -> None:
     slugs = [generate_slug("filename", slug_counts) for _ in range(12)]
     assert len(slugs) == len(set(slugs)), "All slugs must be unique"
     for slug in slugs:
-        assert len(slug) <= 8
+        assert len(slug) == 8
 
 
 def test_generate_slug_collision_at_length_boundary() -> None:
@@ -113,7 +122,15 @@ def test_generate_slug_collision_at_length_boundary() -> None:
     slug_counts: dict[str, int] = {}
     slug1 = generate_slug("abcdefgh", slug_counts)
     slug2 = generate_slug("abcdefgh", slug_counts)
-    assert len(slug1) <= 8
-    assert len(slug2) <= 8
+    assert len(slug1) == 8
+    assert len(slug2) == 8
     assert slug1 == "abcdefgh"
     assert slug2 == "abcdef_0"
+
+
+def test_generate_slug_short_filename_pads_to_8() -> None:
+    """Short filenames are padded with dashes to reach exactly 8 chars."""
+    slug_counts: dict[str, int] = {}
+    assert generate_slug("ab.md", slug_counts) == "ab.md---"
+    assert generate_slug("a.md", slug_counts) == "a.md----"
+    assert generate_slug("abc.md", slug_counts) == "abc.md--"

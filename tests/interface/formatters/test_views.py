@@ -106,14 +106,17 @@ def test_build_vault_edge_list_returns_lightweight_vault_file_pairs(tmp_path: Pa
     vault_index = scanner.scan(vault_root)
     vault_registry = VaultRegistry(vault_index)
 
+    home_slug = next(f.slug for f in vault_index.files if f.file_path.endswith("home.md"))
+    about_slug = next(f.slug for f in vault_index.files if f.file_path.endswith("about.md"))
+
     graph: nx.DiGraph[str] = nx.DiGraph()
-    graph.add_edge("home.md", "about.md")
+    graph.add_edge(home_slug, about_slug)
     vault_graph = _build_graph(graph)
     edges = build_vault_edge_list(vault_graph, vault_registry)
 
     assert len(edges) == 1
-    assert edges[0][0].file_path == "home.md"
-    assert edges[0][1].file_path == "about.md"
+    assert edges[0][0].file_path.endswith("home.md")
+    assert edges[0][1].file_path.endswith("about.md")
     assert not hasattr(edges[0][0], "links")
     assert not hasattr(edges[0][0], "frontmatter")
     assert not hasattr(edges[0][0], "stats")
