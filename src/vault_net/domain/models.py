@@ -108,5 +108,14 @@ class NoteLinkTrace:
     neighborhood_graph: VaultGraph
 
 
+@dataclass(frozen=True, slots=True)
+class NoteShow:
+    """Result of showing a note with its links."""
+
+    note: VaultNote
+    forward_links: list[VaultFile]
+    backward_links: list[VaultFile]
+
+
 class InputError(Exception):
     """Raised when a note input (file path or slug) cannot be resolved."""

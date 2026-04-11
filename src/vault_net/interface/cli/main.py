@@ -11,25 +11,28 @@ from typing import TYPE_CHECKING
 
 import click
 import structlog
-from rich.console import Console
+from rich.console import Console, Group
+from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 
 from vault_net.application import (
     get_full_graph,
     scan_vault,
+    show_note,
     trace_note_links,
 )
 from vault_net.domain.services.vault_registry import VaultRegistry
 from vault_net.interface.formatters.views import (
     build_adjacency_list,
     build_layered_repr,
+    build_note_show,
     build_vault_edge_list,
 )
 from vault_net.logging import configure_debug_logging, get_console
 
 if TYPE_CHECKING:
-    from vault_net.domain.models import VaultGraph
+    from vault_net.domain.models import NoteShow, VaultGraph
 
 logger = structlog.get_logger(__name__)
 
@@ -68,16 +71,16 @@ def emit_json_output(payload: str, output: Path | None) -> None:
         raise click.ClickException(f"Could not write output file {output}: {exc}") from exc
 
 
-def emit_pretty_output(table: Table, output: Path | None) -> None:
-    """Emit rich table to stdout or a target file."""
+def emit_pretty_output(renderable: object, output: Path | None) -> None:
+    """Emit rich renderable to stdout or a target file."""
     if output is None:
-        Console().print(table)
+        Console().print(renderable)
         return
 
     try:
         output_buffer = StringIO()
         output_console = Console(file=output_buffer, force_terminal=False, color_system=None)
-        output_console.print(table)
+        output_console.print(renderable)
         rendered = output_buffer.getvalue()
         output.write_text(rendered, encoding="utf-8")
     except OSError as exc:
@@ -94,6 +97,10 @@ def _path_text(value: str) -> Text:
 
 def _depth_text(depth: int) -> Text:
     return Text(str(depth), style="green")
+
+
+def _hash_text(value: str) -> Text:
+    return Text(value, style="magenta")
 
 
 def _strip_path_and_ext(path: str) -> str:
@@ -507,4 +514,152 @@ def graph_cmd(
         emit_pretty_output(_render_edge_list_table(vault_graph, vault_registry, basename), output)
     console.print("Vault edge list complete")
     logger.info("vault.edge.list.complete")
+    return 0
+
+
+def _render_note_show_table(note_show: NoteShow, use_basename: bool = False) -> Group:
+    info_table = Table(show_header=False, box=None, pad_edge=False)
+    info_table.add_column("Key", no_wrap=True, max_width=15)
+    info_table.add_column("Value", no_wrap=False)
+
+    info_table.add_row("Slug", _slug_text(note_show.note.slug))
+    info_table.add_row("Path", _path_text(note_show.note.file_path))
+    info_table.add_row("Hash", _hash_text(note_show.note.file_hash))
+    info_table.add_row("Status", note_show.note.status)
+    if note_show.note.error:
+        info_table.add_row("Error", note_show.note.error)
+    if note_show.note.frontmatter:
+        info_table.add_row("Frontmatter", str(note_show.note.frontmatter))
+    info_table.add_row(
+        "Size",
+        str(note_show.note.stats.file_size) if note_show.note.stats.file_size else "N/A",
+    )
+    info_table.add_row(
+        "Modified",
+        note_show.note.stats.modified_time or "N/A",
+    )
+    info_table.add_row(
+        "Accessed",
+        note_show.note.stats.access_time or "N/A",
+    )
+
+    forward_table = Table(show_header=True, header_style="bold", box=None)
+    forward_table.add_column("Slug", no_wrap=True, max_width=8)
+    forward_table.add_column("Name" if use_basename else "Path", no_wrap=False)
+    for link in sorted(note_show.forward_links, key=lambda f: f.slug):
+        forward_table.add_row(
+            _slug_text(link.slug),
+            _path_text(_strip_path_and_ext(link.file_path) if use_basename else link.file_path),
+        )
+
+    backward_table = Table(show_header=True, header_style="bold", box=None)
+    backward_table.add_column("Slug", no_wrap=True, max_width=8)
+    backward_table.add_column("Name" if use_basename else "Path", no_wrap=False)
+    for link in sorted(note_show.backward_links, key=lambda f: f.slug):
+        backward_table.add_row(
+            _slug_text(link.slug),
+            _path_text(_strip_path_and_ext(link.file_path) if use_basename else link.file_path),
+        )
+
+    info_header = Text("Note Information", style="bold cyan")
+
+    forward_header = Text(f"Forward Links ({len(note_show.forward_links)})", style="bold cyan")
+    backward_header = Text(f"Backward Links ({len(note_show.backward_links)})", style="bold cyan")
+
+    return Group(
+        info_header,
+        Padding(info_table, (0, 0, 0, 1)),
+        "",
+        forward_header,
+        forward_table if note_show.forward_links else Text(" None", style="dim"),
+        "",
+        backward_header,
+        backward_table if note_show.backward_links else Text(" None", style="dim"),
+    )
+
+
+@main.command("show")
+@click.argument("note_input", type=str)
+@click.option(
+    "--vault-root",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Vault root directory (overrides VAULT_ROOT env and .vault file)",
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(path_type=Path, dir_okay=False),
+    default=None,
+    help="Write output to file instead of stdout",
+)
+@click.option("--debug", is_flag=True, help="Enable debug-level structured logging to stderr")
+@click.option("--verbose", is_flag=True, help="Enable verbose console output")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["pretty", "json"], case_sensitive=False),
+    default="pretty",
+    show_default=True,
+    help="Output format",
+)
+@click.option(
+    "-e",
+    "--exclude-dir",
+    "extra_exclude_dir",
+    multiple=True,
+    metavar="DIR",
+    help="Additional directory name to exclude from traversal (repeatable)",
+)
+@click.option(
+    "--no-default-excludes",
+    is_flag=True,
+    help="Disable built-in default exclusions; use only --exclude-dir entries",
+)
+@click.option(
+    "--basename",
+    is_flag=True,
+    help="Show only filenames without path or extension in pretty output",
+)
+def show_cmd(
+    note_input: str,
+    vault_root: Path | None,
+    output: Path | None,
+    debug: bool,
+    verbose: bool,
+    output_format: str,
+    extra_exclude_dir: tuple[str, ...],
+    no_default_excludes: bool,
+    basename: bool,
+) -> int:
+    """Show detailed information about a note including forward and backward links."""
+    configure_debug_logging(debug)
+    console = get_console(verbose)
+
+    logger.debug(
+        "starting.show_note",
+        note_input=note_input,
+        vault_root=str(vault_root) if vault_root else None,
+    )
+    vault_root = resolve_vault_root(vault_root)
+    logger.info("showing.note", note_input=note_input)
+
+    try:
+        note_show = show_note(
+            vault_root,
+            note_input,
+            extra_exclude_dir=extra_exclude_dir,
+            no_default_excludes=no_default_excludes,
+        )
+    except KeyError as exc:
+        raise click.UsageError(f"Unknown slug '{note_input}'.") from exc
+
+    if output_format == "json":
+        payload = build_note_show(note_show)
+        emit_json_output(json.dumps(payload, indent=2, default=str), output)
+    else:
+        emit_pretty_output(_render_note_show_table(note_show, basename), output)
+
+    console.print("Note show complete")
+    logger.info("note.show.complete")
     return 0

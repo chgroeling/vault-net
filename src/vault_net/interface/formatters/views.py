@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol, TypedDict, cast
 
 if TYPE_CHECKING:
-    from vault_net.domain.models import VaultFile, VaultGraph
+    from vault_net.domain.models import NoteShow, VaultFile, VaultGraph
 
 
 class _LayerEntry(TypedDict):
@@ -92,4 +92,15 @@ def build_layered_repr(
         "vault_root": str(graph.vault_root),
         "total_files": graph.digraph.number_of_nodes(),
         "layers": layers,
+    }
+
+
+def build_note_show(note_show: NoteShow) -> dict[str, object]:
+    """Serialize a NoteShow result into a JSON-friendly dictionary."""
+    from dataclasses import asdict
+
+    return {
+        "note": asdict(note_show.note),
+        "forward_links": [asdict(f) for f in note_show.forward_links],
+        "backward_links": [asdict(b) for b in note_show.backward_links],
     }

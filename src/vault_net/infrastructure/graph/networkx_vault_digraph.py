@@ -24,6 +24,9 @@ class NetworkXVaultDiGraph:
     def successors(self, node: str) -> list[str]:
         return list(self._g.successors(node))
 
+    def predecessors(self, node: str) -> list[str]:
+        return list(self._g.predecessors(node))
+
     def bfs_layers(self, source: str) -> list[list[str]]:
         return list(nx.bfs_layers(self._g.to_undirected(), [source]))
 
