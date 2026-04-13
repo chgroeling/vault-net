@@ -120,7 +120,7 @@ def test_build_neighborhood_graph_requires_known_slug(tmp_path: Path) -> None:
     vault_index, note_links = scanner.scan(vault_root)
     graph = graph_builder.build_full_graph(vault_index, note_links)
     with pytest.raises(KeyError):
-        graph_builder.build_neighborhood_graph("missing----", graph, depth=1)
+        graph_builder.build_neighborhood_graph("missing_", graph, depth=1)
 
 
 def test_build_neighborhood_graph_depth_zero_returns_source_only(tmp_path: Path) -> None:

@@ -44,7 +44,7 @@ def test_trace_uses_slug_argument(tmp_path: Path) -> None:
     payload = json.loads(result.output)
     assert payload["vault_root"] == str(vault)
     assert payload["metadata"]["edge_count"] == 1
-    assert payload["edges"] == [["home.md-", "home.md", "about.md", "about.md"]]
+    assert payload["edges"] == [["HOME_MD_", "home.md", "ABOUT_MD", "about.md"]]
 
 
 def test_trace_unknown_slug_returns_usage_error(tmp_path: Path) -> None:
@@ -84,8 +84,8 @@ def test_trace_style_adjacency_list(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["home.md-"] == [{"slug": "about.md", "file_path": "about.md"}]
-    assert payload["about.md"] == []
+    assert payload["HOME_MD_"] == [{"slug": "ABOUT_MD", "file_path": "about.md"}]
+    assert payload["ABOUT_MD"] == []
 
 
 def test_trace_style_layered(tmp_path: Path) -> None:
@@ -112,10 +112,10 @@ def test_trace_style_layered(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["source_note"] == "home.md-"
+    assert payload["source_note"] == "HOME_MD_"
     assert payload["total_files"] == 2
     assert payload["layers"][0]["depth"] == 0
-    assert payload["layers"][0]["note"]["slug"] == "home.md-"
+    assert payload["layers"][0]["note"]["slug"] == "HOME_MD_"
     assert payload["layers"][0]["note"]["file_path"] == "home.md"
     assert "status" in payload["layers"][0]["note"]
 
@@ -163,8 +163,8 @@ def test_graph_command_style_adjacency_list(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["home.md-"] == [{"slug": "about.md", "file_path": "about.md"}]
-    assert payload["about.md"] == []
+    assert payload["HOME_MD_"] == [{"slug": "ABOUT_MD", "file_path": "about.md"}]
+    assert payload["ABOUT_MD"] == []
 
 
 def test_cli_errors_without_vault_root() -> None:

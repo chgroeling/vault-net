@@ -62,7 +62,7 @@ def test_get_slug_by_path_returns_slug_for_existing_file(
     """get_slug_by_path returns slug when file_path matches."""
     _, registry = simple_vault
     result = registry.get_slug_by_path("home.md")
-    assert result == "home.md-"
+    assert result == "HOME_MD_"
 
 
 def test_get_slug_by_path_returns_none_for_missing_file(
@@ -86,14 +86,14 @@ def test_resolve_to_slug_by_direct_slug(simple_vault: tuple[Path, VaultRegistry]
     """resolve_to_slug returns slug when input is a direct slug match."""
     _, registry = simple_vault
     result = registry.resolve_to_slug("home.md", Path("/fake/vault"))
-    assert result == "home.md-"
+    assert result == "HOME_MD_"
 
 
 def test_resolve_to_slug_by_relative_path(simple_vault: tuple[Path, VaultRegistry]) -> None:
     """resolve_to_slug resolves relative path to slug."""
     vault_root, registry = simple_vault
     result = registry.resolve_to_slug("about.md", vault_root)
-    assert result == "about.md"
+    assert result == "ABOUT_MD"
 
 
 def test_resolve_to_slug_by_nested_relative_path(
@@ -102,7 +102,7 @@ def test_resolve_to_slug_by_nested_relative_path(
     """resolve_to_slug resolves nested relative path to slug."""
     vault_root, _, registry = structured_vault
     result = registry.resolve_to_slug("3_structs/Die drei ethischen Regeln.md", vault_root)
-    assert result == "Die-drei"
+    assert result == "DIE_DREI"
 
 
 def test_resolve_to_slug_by_absolute_path(
@@ -112,7 +112,7 @@ def test_resolve_to_slug_by_absolute_path(
     vault_root, subdir, registry = structured_vault
     note_path = subdir / "Die drei ethischen Regeln.md"
     result = registry.resolve_to_slug(str(note_path), vault_root)
-    assert result == "Die-drei"
+    assert result == "DIE_DREI"
 
 
 def test_resolve_to_slug_returns_none_for_missing_input(
