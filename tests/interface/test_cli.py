@@ -27,8 +27,8 @@ def test_cli_help_exits_cleanly() -> None:
     assert "Trace Obsidian note links" in result.output
 
 
-def test_note_graph_uses_slug_argument(tmp_path: Path) -> None:
-    """note-graph resolves by slug instead of file path."""
+def test_trace_uses_slug_argument(tmp_path: Path) -> None:
+    """trace resolves by slug instead of file path."""
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "home.md").write_text("[[about]]", encoding="utf-8")
@@ -37,7 +37,7 @@ def test_note_graph_uses_slug_argument(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["note-graph", "home.md", "--vault-root", str(vault), "--format", "json"],
+        ["trace", "home.md", "--vault-root", str(vault), "--format", "json"],
     )
 
     assert result.exit_code == 0
@@ -47,21 +47,21 @@ def test_note_graph_uses_slug_argument(tmp_path: Path) -> None:
     assert payload["edges"] == [["home.md-", "home.md", "about.md", "about.md"]]
 
 
-def test_note_graph_unknown_slug_returns_usage_error(tmp_path: Path) -> None:
+def test_trace_unknown_slug_returns_usage_error(tmp_path: Path) -> None:
     """Unknown slug returns a CLI usage error."""
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "home.md").write_text("", encoding="utf-8")
 
     runner = CliRunner()
-    result = runner.invoke(main, ["note-graph", "missing.md", "--vault-root", str(vault)])
+    result = runner.invoke(main, ["trace", "missing.md", "--vault-root", str(vault)])
 
     assert result.exit_code != 0
     assert "Unknown slug" in result.output
 
 
-def test_note_graph_style_adjacency_list(tmp_path: Path) -> None:
-    """note-graph supports adjacency_list style."""
+def test_trace_style_adjacency_list(tmp_path: Path) -> None:
+    """trace supports adjacency_list style."""
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "home.md").write_text("[[about]]", encoding="utf-8")
@@ -71,7 +71,7 @@ def test_note_graph_style_adjacency_list(tmp_path: Path) -> None:
     result = runner.invoke(
         main,
         [
-            "note-graph",
+            "trace",
             "home.md",
             "--vault-root",
             str(vault),
@@ -88,8 +88,8 @@ def test_note_graph_style_adjacency_list(tmp_path: Path) -> None:
     assert payload["about.md"] == []
 
 
-def test_note_graph_style_layered(tmp_path: Path) -> None:
-    """note-graph supports layered style."""
+def test_trace_style_layered(tmp_path: Path) -> None:
+    """trace supports layered style."""
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "home.md").write_text("[[about]]", encoding="utf-8")
@@ -99,7 +99,7 @@ def test_note_graph_style_layered(tmp_path: Path) -> None:
     result = runner.invoke(
         main,
         [
-            "note-graph",
+            "trace",
             "home.md",
             "--vault-root",
             str(vault),
@@ -176,7 +176,7 @@ def test_cli_errors_without_vault_root() -> None:
     assert "No vault root directory provided" in result.output
 
 
-def test_note_graph_output_writes_json_file(tmp_path: Path) -> None:
+def test_trace_output_writes_json_file(tmp_path: Path) -> None:
     """-o/--output writes note JSON payload to a file."""
     vault = tmp_path / "vault"
     vault.mkdir()
@@ -187,7 +187,7 @@ def test_note_graph_output_writes_json_file(tmp_path: Path) -> None:
     result = runner.invoke(
         main,
         [
-            "note-graph",
+            "trace",
             "home.md",
             "--vault-root",
             str(vault),
@@ -216,7 +216,7 @@ def test_cli_uses_env_var(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["note-graph", "home.md", "--format", "json"],
+        ["trace", "home.md", "--format", "json"],
         catch_exceptions=False,
     )
 
@@ -239,7 +239,7 @@ def test_graph_defaults_to_pretty_output(tmp_path: Path) -> None:
     assert "home.md" in result.output
 
 
-def test_note_graph_layered_pretty_slug_before_depth(tmp_path: Path) -> None:
+def test_trace_layered_pretty_slug_before_depth(tmp_path: Path) -> None:
     """layered pretty output shows slug column before depth."""
     vault = tmp_path / "vault"
     vault.mkdir()
@@ -249,7 +249,7 @@ def test_note_graph_layered_pretty_slug_before_depth(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["note-graph", "home.md", "--vault-root", str(vault), "--style", "layered"],
+        ["trace", "home.md", "--vault-root", str(vault), "--style", "layered"],
     )
 
     assert result.exit_code == 0
@@ -277,7 +277,7 @@ def test_graph_adjacency_pretty_includes_slug_column(tmp_path: Path) -> None:
     assert "Targets" in result.output
 
 
-def test_note_graph_basename_strips_path_and_extension(tmp_path: Path) -> None:
+def test_trace_basename_strips_path_and_extension(tmp_path: Path) -> None:
     """--basename shows filename without path or extension in Path columns."""
     vault = tmp_path / "vault"
     vault.mkdir()
@@ -287,7 +287,7 @@ def test_note_graph_basename_strips_path_and_extension(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["note-graph", "home.md", "--vault-root", str(vault), "--basename"],
+        ["trace", "home.md", "--vault-root", str(vault), "--basename"],
     )
 
     assert result.exit_code == 0
@@ -315,7 +315,7 @@ def test_graph_basename_strips_path_and_extension(tmp_path: Path) -> None:
     assert str(vault) not in result.output
 
 
-def test_note_graph_basename_layered_style(tmp_path: Path) -> None:
+def test_trace_basename_layered_style(tmp_path: Path) -> None:
     """--basename works with layered style."""
     vault = tmp_path / "vault"
     vault.mkdir()
@@ -325,7 +325,7 @@ def test_note_graph_basename_layered_style(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["note-graph", "home.md", "--vault-root", str(vault), "--style", "layered", "--basename"],
+        ["trace", "home.md", "--vault-root", str(vault), "--style", "layered", "--basename"],
     )
 
     assert result.exit_code == 0
@@ -334,7 +334,7 @@ def test_note_graph_basename_layered_style(tmp_path: Path) -> None:
     assert str(vault) not in result.output
 
 
-def test_note_graph_basename_adjacency_style(tmp_path: Path) -> None:
+def test_trace_basename_adjacency_style(tmp_path: Path) -> None:
     """--basename works with adjacency_list style."""
     vault = tmp_path / "vault"
     vault.mkdir()
@@ -345,7 +345,7 @@ def test_note_graph_basename_adjacency_style(tmp_path: Path) -> None:
     result = runner.invoke(
         main,
         [
-            "note-graph",
+            "trace",
             "home.md",
             "--vault-root",
             str(vault),

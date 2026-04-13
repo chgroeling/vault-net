@@ -91,7 +91,7 @@ def main() -> None:
     """Trace Obsidian note links to filesystem sources."""
 
 
-@main.command("note-graph")
+@main.command("trace")
 @click.version_option(version=__version__)
 @click.argument("note_input", type=str)
 @click.option(
@@ -149,7 +149,7 @@ def main() -> None:
     is_flag=True,
     help="Show only filenames without path or extension in pretty output",
 )
-def note_graph(
+def trace_cmd(
     note_input: str,
     vault_root: Path | None,
     depth: int,
