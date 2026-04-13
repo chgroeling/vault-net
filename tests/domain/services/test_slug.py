@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from vault_net.domain.services.slug_service import generate_slug
 
 
@@ -167,3 +169,13 @@ def test_generate_slug_padding_collision_special_char_variants() -> None:
     assert first != second, f"Both produced {first}"
     assert len(first) == 8
     assert len(second) == 8
+
+
+def test_generate_slug_raises_when_namespace_exhausted() -> None:
+    """Raise ValueError when all slug slots for a base are taken."""
+    slug_counts: dict[str, int] = {}
+    base = "X_______"
+    slug_counts[base] = 10_000_000
+
+    with pytest.raises(ValueError, match="Slug namespace exhausted"):
+        generate_slug("x", slug_counts)
