@@ -7,6 +7,7 @@ import os
 from dataclasses import asdict
 from io import StringIO
 from pathlib import Path
+from typing import TextIO
 
 import click
 import structlog
@@ -498,15 +499,29 @@ def show_cmd(
     "-c",
     "--content",
     type=str,
-    default="",
+    default=None,
     help="Text content to write into the new note",
+)
+@click.option(
+    "-f",
+    "--content-file",
+    type=click.File("r", encoding="utf-8"),
+    default=None,
+    help="Read note content from a file (use '-' for stdin)",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Overwrite the note if it already exists",
 )
 @click.option("--debug", is_flag=True, help="Enable debug-level structured logging to stderr")
 @click.option("--verbose", is_flag=True, help="Enable verbose console output")
 def create_cmd(
     name: str,
     vault_root: Path | None,
-    content: str,
+    content: str | None,
+    content_file: TextIO | None,
+    force: bool,
     debug: bool,
     verbose: bool,
 ) -> int:
@@ -515,6 +530,14 @@ def create_cmd(
     NAME is the note path relative to the vault root (e.g. "sub/dir/my-note").
     A .md extension is appended automatically when missing.
     """
+    if content is not None and content_file is not None:
+        raise click.UsageError("--content and --content-file are mutually exclusive.")
+
+    if content_file is not None:
+        content = content_file.read()
+    elif content is None:
+        content = ""
+
     configure_debug_logging(debug)
     console = get_console(verbose)
 
@@ -527,7 +550,7 @@ def create_cmd(
     logger.info("creating.note", name=name)
 
     try:
-        slug = create_note(vault_root, name, content=content)
+        slug = create_note(vault_root, name, content=content, force=force)
     except FileExistsError as exc:
         raise click.UsageError(str(exc)) from exc
     except ValueError as exc:

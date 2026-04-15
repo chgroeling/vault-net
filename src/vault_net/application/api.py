@@ -86,10 +86,11 @@ def create_note(
     name: str,
     *,
     content: str = "",
+    force: bool = False,
 ) -> str:
     """Create a new note in the vault and return its slug."""
-    use_case = CreateNoteUseCase()
-    return use_case.execute(vault_root, name, content=content)
+    use_case = CreateNoteUseCase(scanner=MatterifyVaultScanner())
+    return use_case.execute(vault_root, name, content=content, force=force)
 
 
 def show_note(

@@ -409,3 +409,65 @@ def test_create_duplicate_returns_error(tmp_path: Path) -> None:
 
     assert result.exit_code != 0
     assert "already exists" in result.output
+
+
+def test_create_force_overwrites_existing(tmp_path: Path) -> None:
+    """create --force overwrites an existing note."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "dup.md").write_text("old", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["create", "dup", "--vault-root", str(vault), "--force", "-c", "new"]
+    )
+
+    assert result.exit_code == 0
+    assert (vault / "dup.md").read_text(encoding="utf-8") == "new"
+
+
+def test_create_content_file_reads_from_file(tmp_path: Path) -> None:
+    """create --content-file reads note content from a file."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    src = tmp_path / "body.txt"
+    src.write_text("# From file\n\nBody text", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["create", "note", "--vault-root", str(vault), "-f", str(src)])
+
+    assert result.exit_code == 0
+    assert (vault / "note.md").read_text(encoding="utf-8") == "# From file\n\nBody text"
+
+
+def test_create_content_file_reads_stdin(tmp_path: Path) -> None:
+    """create --content-file - reads note content from stdin."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["create", "note", "--vault-root", str(vault), "-f", "-"],
+        input="stdin content",
+    )
+
+    assert result.exit_code == 0
+    assert (vault / "note.md").read_text(encoding="utf-8") == "stdin content"
+
+
+def test_create_content_and_content_file_mutually_exclusive(tmp_path: Path) -> None:
+    """create rejects --content and --content-file together."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    src = tmp_path / "body.txt"
+    src.write_text("x", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["create", "note", "--vault-root", str(vault), "-c", "inline", "-f", str(src)],
+    )
+
+    assert result.exit_code != 0
+    assert "mutually exclusive" in result.output
