@@ -47,6 +47,7 @@ class TestShowNoteUseCase:
             mock_note.stats.modified_time = "2024-01-01"
             mock_note.stats.access_time = "2024-01-02"
             mock_note.to_file.return_value = VaultFile(slug="test-slug", file_path="test/path.md")
+            mock_registry.get_note.return_value = mock_note
             mock_registry.get_file.return_value = mock_note
 
             MockRegistry.return_value = mock_registry
@@ -118,14 +119,13 @@ class TestShowNoteUseCase:
             )
 
             def get_file_side_effect(slug: str) -> MagicMock | None:
-                if slug == "source-slug":
-                    return source_note
                 if slug == "forward-slug":
                     return forward_note
                 if slug == "backward-slug":
                     return backward_note
                 return None
 
+            mock_registry.get_note.return_value = source_note
             mock_registry.get_file.side_effect = get_file_side_effect
             MockRegistry.return_value = mock_registry
 
@@ -170,7 +170,7 @@ class TestShowNoteUseCase:
             source_note = MagicMock(spec=VaultNote)
             source_note.slug = "note"
             source_note.file_path = "note.md"
-            mock_registry.get_file.return_value = source_note
+            mock_registry.get_note.return_value = source_note
 
             MockRegistry.return_value = mock_registry
 
@@ -204,7 +204,7 @@ class TestShowNoteUseCase:
             source_note = MagicMock(spec=VaultNote)
             source_note.slug = "missing"
             source_note.file_path = "nonexistent.md"
-            mock_registry.get_file.return_value = source_note
+            mock_registry.get_note.return_value = source_note
 
             MockRegistry.return_value = mock_registry
 

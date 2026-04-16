@@ -85,6 +85,14 @@ class VaultNote(VaultFile):
 
 
 @dataclass(frozen=True, slots=True)
+class VaultListing:
+    """Lightweight file listing from a quick vault scan."""
+
+    vault_root: Path
+    files: list[VaultFile]
+
+
+@dataclass(frozen=True, slots=True)
 class VaultIndex:
     """Immutable vault index with file entries and metadata."""
 

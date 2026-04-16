@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from vault_net.domain.models import VaultGraph, VaultIndex, VaultLink
+    from vault_net.domain.models import VaultGraph, VaultIndex, VaultLink, VaultListing
 
 
 class VaultDiGraph(Protocol):
@@ -46,6 +46,15 @@ class VaultScanner(Protocol):
         no_default_excludes: bool = False,
     ) -> tuple[VaultIndex, dict[str, list[VaultLink]]]:
         """Scan the vault and return a domain index with note links."""
+
+    def index_files(
+        self,
+        vault_root: Path,
+        *,
+        extra_exclude: tuple[str, ...] = (),
+        no_default_excludes: bool = False,
+    ) -> VaultListing:
+        """Index vault files into a lightweight listing of slugs and paths."""
 
 
 class GraphBuilder(Protocol):

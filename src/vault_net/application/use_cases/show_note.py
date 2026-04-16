@@ -61,7 +61,7 @@ class ShowNoteUseCase:
             "use_case.show_note.step.resolving_links",
             resolved_slug=source_slug,
         )
-        source_note = registry.get_file(source_slug)
+        source_note = registry.get_note(source_slug)
         if source_note is None:
             raise KeyError(source_slug)
 
@@ -72,13 +72,13 @@ class ShowNoteUseCase:
         for slug in forward_slugs:
             file = registry.get_file(slug)
             if file is not None:
-                forward_links.append(file.to_file())
+                forward_links.append(VaultFile(slug=file.slug, file_path=file.file_path))
 
         backward_links: list[VaultFile] = []
         for slug in backward_slugs:
             file = registry.get_file(slug)
             if file is not None:
-                backward_links.append(file.to_file())
+                backward_links.append(VaultFile(slug=file.slug, file_path=file.file_path))
 
         duration = time.monotonic() - start
         logger.info(

@@ -12,10 +12,12 @@ from matterify.constants import DEFAULT_EXCLUDE_PATTERNS
 from obsilink import extract_links
 
 from vault_net.domain.models import (
+    VaultFile,
     VaultFileStats,
     VaultIndex,
     VaultIndexMetadata,
     VaultLink,
+    VaultListing,
     VaultNote,
 )
 from vault_net.domain.services.slug_service import generate_slug
@@ -89,6 +91,21 @@ def _convert_scan_to_index(
     return vault_index, note_links
 
 
+def _convert_scan_to_listing(
+    vault_root: Path,
+    scan_result: ScanResults,
+) -> VaultListing:
+    """Convert a matterify scan result to a lightweight `VaultListing`."""
+    files: list[VaultFile] = []
+    slug_counts: dict[str, int] = {}
+    for entry in scan_result.files:
+        file_path_str = str(entry.file_path)
+        filename = Path(file_path_str).name
+        slug = generate_slug(filename, slug_counts)
+        files.append(VaultFile(slug=slug, file_path=file_path_str))
+    return VaultListing(vault_root=vault_root, files=files)
+
+
 class MatterifyVaultScanner:
     """Scanner adapter that uses matterify and obsilink."""
 
@@ -131,3 +148,33 @@ class MatterifyVaultScanner:
             file_count=len(index.files),
         )
         return index, note_links
+
+    def index_files(
+        self,
+        vault_root: Path,
+        *,
+        extra_exclude: tuple[str, ...] = (),
+        no_default_excludes: bool = False,
+    ) -> VaultListing:
+        """Index vault files into a lightweight listing of slugs and paths."""
+        start = time.monotonic()
+        logger.debug("index_files.start", vault_root=str(vault_root))
+
+        base = () if no_default_excludes else DEFAULT_EXCLUDE_PATTERNS
+        scan_result = scan_directory(
+            vault_root,
+            exclude=base + extra_exclude,
+            compute_hash=False,
+            compute_stats=False,
+            compute_frontmatter=True,
+            callback=None,
+        )
+
+        listing = _convert_scan_to_listing(vault_root, scan_result)
+        duration = time.monotonic() - start
+        logger.debug(
+            "index_files.complete",
+            duration=round(duration, 4),
+            file_count=len(listing.files),
+        )
+        return listing

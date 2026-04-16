@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from vault_net.domain.services.vault_registry import VaultRegistry
+from vault_net.domain.services.vault_registry import VaultFileLookup
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -47,17 +47,17 @@ class DeleteNoteUseCase:
         """
         logger.info("use_case.delete_note.start", note_input=note_input)
 
-        vault_index, _ = self._scanner.scan(
+        listing = self._scanner.index_files(
             vault_root,
             extra_exclude=extra_exclude,
             no_default_excludes=no_default_excludes,
         )
 
-        registry = VaultRegistry(vault_index)
-        slug = registry.resolve_to_slug(note_input, vault_root)
+        lookup = VaultFileLookup(listing)
+        slug = lookup.resolve_to_slug(note_input, vault_root)
         if slug is None:
             raise KeyError(note_input)
-        note = registry.get_file(slug)
+        note = lookup.get_file(slug)
         if note is None:
             raise KeyError(note_input)
 

@@ -8,15 +8,14 @@ from unittest.mock import MagicMock
 import pytest
 
 from vault_net.application.use_cases.create_note import CreateNoteUseCase
-from vault_net.domain.models import VaultIndex
+from vault_net.domain.models import VaultFile, VaultListing
 
 
-def _make_use_case(vault_index: VaultIndex | None = None) -> CreateNoteUseCase:
+def _make_use_case(files: list[VaultFile] | None = None) -> CreateNoteUseCase:
     scanner = MagicMock()
-    if vault_index is None:
-        vault_index = MagicMock(spec=VaultIndex)
-        vault_index.files = []
-    scanner.scan.return_value = (vault_index, {})
+    listing = MagicMock(spec=VaultListing)
+    listing.files = files or []
+    scanner.index_files.return_value = listing
     return CreateNoteUseCase(scanner=scanner)
 
 
@@ -95,11 +94,8 @@ class TestCreateNoteUseCase:
 
     def test_slug_avoids_collision_with_existing_notes(self, tmp_path: Path) -> None:
         """Generate a unique slug when the base slug is already taken."""
-        vault_index = MagicMock(spec=VaultIndex)
-        existing = MagicMock()
-        existing.slug = "MY_NOTE_"
-        vault_index.files = [existing]
-        use_case = _make_use_case(vault_index)
+        existing = VaultFile(slug="MY_NOTE_", file_path="my-note.md")
+        use_case = _make_use_case([existing])
 
         slug = use_case.execute(tmp_path, "my-note")
 

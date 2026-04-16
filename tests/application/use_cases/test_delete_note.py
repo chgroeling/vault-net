@@ -8,22 +8,20 @@ from unittest.mock import MagicMock
 import pytest
 
 from vault_net.application.use_cases.delete_note import DeleteNoteUseCase
-from vault_net.domain.models import VaultIndex, VaultNote
+from vault_net.domain.models import VaultFile, VaultListing
 
 
-def _make_note(slug: str, file_path: str) -> VaultNote:
-    return MagicMock(spec=VaultNote, slug=slug, file_path=file_path)
+def _make_note(slug: str, file_path: str) -> VaultFile:
+    return VaultFile(slug=slug, file_path=file_path)
 
 
 def _make_use_case(
-    notes: list[VaultNote],
+    notes: list[VaultFile],
     vault_root: Path,
 ) -> DeleteNoteUseCase:
-    vault_index = MagicMock(spec=VaultIndex)
-    vault_index.files = notes
-    vault_index.vault_root = vault_root
+    listing = VaultListing(vault_root=vault_root, files=notes)
     scanner = MagicMock()
-    scanner.scan.return_value = (vault_index, {})
+    scanner.index_files.return_value = listing
     return DeleteNoteUseCase(scanner=scanner)
 
 
@@ -85,7 +83,7 @@ class TestDeleteNoteUseCase:
             no_default_excludes=True,
         )
 
-        use_case._scanner.scan.assert_called_once_with(
+        use_case._scanner.index_files.assert_called_once_with(
             tmp_path,
             extra_exclude=("*.tmp",),
             no_default_excludes=True,

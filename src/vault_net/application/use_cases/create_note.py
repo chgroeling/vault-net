@@ -63,9 +63,9 @@ class CreateNoteUseCase:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
 
-        # Scan vault to build accurate slug_counts from existing notes
-        vault_index, _ = self._scanner.scan(vault_root)
-        slug_counts: dict[str, int] = {note.slug: 0 for note in vault_index.files}
+        # Quick scan to build accurate slug_counts from existing notes
+        listing = self._scanner.index_files(vault_root)
+        slug_counts: dict[str, int] = {f.slug: 0 for f in listing.files}
 
         stem = target.stem
         slug = generate_slug(stem, slug_counts)
