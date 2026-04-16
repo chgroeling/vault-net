@@ -31,10 +31,10 @@ class NetworkXVaultDiGraph:
         return list(nx.bfs_layers(self._g.to_undirected(), [source]))
 
     def number_of_nodes(self) -> int:
-        return cast("int", self._g.number_of_nodes())
+        return self._g.number_of_nodes()
 
     def number_of_edges(self) -> int:
-        return cast("int", self._g.number_of_edges())
+        return self._g.number_of_edges()
 
     def __contains__(self, node: str) -> bool:
         return node in self._g

@@ -18,11 +18,11 @@ def _make_note(slug: str, file_path: str) -> VaultFile:
 def _make_use_case(
     notes: list[VaultFile],
     vault_root: Path,
-) -> DeleteNoteUseCase:
+) -> tuple[DeleteNoteUseCase, MagicMock]:
     listing = VaultListing(vault_root=vault_root, files=notes)
     scanner = MagicMock()
     scanner.list_files.return_value = listing
-    return DeleteNoteUseCase(scanner=scanner)
+    return DeleteNoteUseCase(scanner=scanner), scanner
 
 
 class TestDeleteNoteUseCase:
@@ -34,7 +34,7 @@ class TestDeleteNoteUseCase:
         note_file.write_text("# Hello", encoding="utf-8")
         note = _make_note("HELLO__", "hello.md")
 
-        use_case = _make_use_case([note], tmp_path)
+        use_case, _ = _make_use_case([note], tmp_path)
         result = use_case.execute(tmp_path, "HELLO__")
 
         assert result == "hello.md"
@@ -48,7 +48,7 @@ class TestDeleteNoteUseCase:
         note_file.write_text("deep content", encoding="utf-8")
         note = _make_note("DEEP__", "sub/dir/deep.md")
 
-        use_case = _make_use_case([note], tmp_path)
+        use_case, _ = _make_use_case([note], tmp_path)
         result = use_case.execute(tmp_path, "DEEP__")
 
         assert result == "sub/dir/deep.md"
@@ -56,7 +56,7 @@ class TestDeleteNoteUseCase:
 
     def test_raises_key_error_for_unknown_slug(self, tmp_path: Path) -> None:
         """Raise KeyError when the slug cannot be resolved."""
-        use_case = _make_use_case([], tmp_path)
+        use_case, _ = _make_use_case([], tmp_path)
 
         with pytest.raises(KeyError):
             use_case.execute(tmp_path, "NONEXISTENT")
@@ -64,7 +64,7 @@ class TestDeleteNoteUseCase:
     def test_raises_file_not_found_when_file_missing(self, tmp_path: Path) -> None:
         """Raise FileNotFoundError when the resolved file doesn't exist on disk."""
         note = _make_note("GONE__", "gone.md")
-        use_case = _make_use_case([note], tmp_path)
+        use_case, _ = _make_use_case([note], tmp_path)
 
         with pytest.raises(FileNotFoundError, match="does not exist"):
             use_case.execute(tmp_path, "GONE__")
@@ -75,7 +75,7 @@ class TestDeleteNoteUseCase:
         note_file.write_text("", encoding="utf-8")
         note = _make_note("NOTE__", "note.md")
 
-        use_case = _make_use_case([note], tmp_path)
+        use_case, scanner = _make_use_case([note], tmp_path)
         use_case.execute(
             tmp_path,
             "NOTE__",
@@ -83,7 +83,7 @@ class TestDeleteNoteUseCase:
             no_default_excludes=True,
         )
 
-        use_case._scanner.list_files.assert_called_once_with(
+        scanner.list_files.assert_called_once_with(
             tmp_path,
             extra_exclude=("*.tmp",),
             no_default_excludes=True,
