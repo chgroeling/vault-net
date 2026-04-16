@@ -27,7 +27,7 @@ classifiers = [
 
 dependencies = [
     "click>=8.3.2",
-    "matterify==0.7.0",
+    "matterify==0.8.0",
     "networkx>=3.4.2",
     "obsilink>=0.3.1",
     "rich>=14.3.3",
