@@ -1,4 +1,4 @@
-"""Use case for scanning a vault into a domain index."""
+"""Use case for indexing a vault into a domain index."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class ScanVaultUseCase:
+class IndexVaultUseCase:
     """Orchestrate vault scanning through the scanner port."""
 
     def __init__(self, scanner: VaultScanner) -> None:
@@ -31,7 +31,7 @@ class ScanVaultUseCase:
     ) -> tuple[VaultIndex, dict[str, list[VaultLink]]]:
         """Scan the vault and return the resulting index with note links."""
         start = time.monotonic()
-        logger.debug("use_case.scan_vault.start", vault_root=str(vault_root))
+        logger.debug("use_case.index_vault.start", vault_root=str(vault_root))
 
         index, note_links = self._scanner.scan(
             vault_root,
@@ -41,7 +41,7 @@ class ScanVaultUseCase:
 
         duration = time.monotonic() - start
         logger.info(
-            "use_case.scan_vault.complete",
+            "use_case.index_vault.complete",
             duration=round(duration, 4),
             total_files=index.metadata.total_files,
         )

@@ -7,7 +7,7 @@ from importlib.metadata import PackageNotFoundError, version
 from vault_net.application.api import (
     get_full_graph,
     get_neighborhood_graph,
-    scan_vault,
+    index_vault,
     trace_note_links,
 )
 from vault_net.domain.models import NoteLinkTrace, VaultGraph, VaultGraphMetadata, VaultIndex
@@ -30,6 +30,6 @@ __all__ = [
     "build_vault_edge_list",
     "get_full_graph",
     "get_neighborhood_graph",
-    "scan_vault",
+    "index_vault",
     "trace_note_links",
 ]

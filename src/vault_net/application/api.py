@@ -19,20 +19,20 @@ from vault_net.application.use_cases.build_full_graph import BuildFullGraphUseCa
 from vault_net.application.use_cases.build_neighborhood_graph import BuildNeighborhoodGraphUseCase
 from vault_net.application.use_cases.create_note import CreateNoteUseCase
 from vault_net.application.use_cases.delete_note import DeleteNoteUseCase
-from vault_net.application.use_cases.scan_vault import ScanVaultUseCase
+from vault_net.application.use_cases.index_vault import IndexVaultUseCase
 from vault_net.application.use_cases.show_note import ShowNoteUseCase
 from vault_net.application.use_cases.trace_note_links import TraceNoteLinksUseCase
 from vault_net.infrastructure.graph.networkx_graph_builder import NetworkXGraphBuilder
 from vault_net.infrastructure.scanner.matterify_scanner import MatterifyVaultScanner
 
 
-def scan_vault(
+def index_vault(
     vault_root: Path,
     extra_exclude: tuple[str, ...] = (),
     no_default_excludes: bool = False,
 ) -> tuple[VaultIndex, dict[str, list[VaultLink]]]:
     """Scan vault directory and build a domain index with note links."""
-    use_case = ScanVaultUseCase(scanner=MatterifyVaultScanner())
+    use_case = IndexVaultUseCase(scanner=MatterifyVaultScanner())
     return use_case.execute(
         vault_root,
         extra_exclude=extra_exclude,

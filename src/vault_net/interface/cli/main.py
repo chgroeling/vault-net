@@ -18,7 +18,7 @@ from vault_net.application import (
     create_note,
     delete_note,
     get_full_graph,
-    scan_vault,
+    index_vault,
     show_note,
     trace_note_links,
 )
@@ -280,7 +280,7 @@ def index_cmd(
     logger.debug("starting.vault_index_scan", vault_root=str(vault_root) if vault_root else None)
     vault_root = resolve_vault_root(vault_root)
     logger.info("scanning.vault.index", vault_root=str(vault_root))
-    vault_index, _ = scan_vault(
+    vault_index, _ = index_vault(
         vault_root,
         extra_exclude=extra_exclude,
         no_default_excludes=no_default_excludes,
@@ -365,7 +365,7 @@ def graph_cmd(
     logger.debug("starting.vault_edge_list", vault_root=str(vault_root) if vault_root else None)
     vault_root = resolve_vault_root(vault_root)
     logger.info("building.vault.edge_list", vault_root=str(vault_root))
-    vault_index, note_links = scan_vault(
+    vault_index, note_links = index_vault(
         vault_root,
         extra_exclude=extra_exclude,
         no_default_excludes=no_default_excludes,
